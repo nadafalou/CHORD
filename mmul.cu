@@ -117,16 +117,26 @@ int main( int argc, char *argv[] ) {
 	// Allocate 3 arrays on GPU
 	__half *d_Iin, *d_W, *d_Iout;
 
-	if (cudaMalloc(&d_Iin, T * rho * sizeof(__half)) != 0) {
+	if (cudaMalloc(&d_Iin, F * T * rho * sizeof(__half)) != 0) {
 		std::cout << "cudaMalloc Iin failed!" << std::endl;
 		return -1;
 	}
-	if (cudaMalloc(&d_W, rho * B * sizeof(__half)) != 0) {
+	if (cudaMalloc(&d_W, F * rho * B * sizeof(__half)) != 0) {
 		std::cout << "cudaMalloc W failed!" << std::endl;
 		return -1;
 	}
-	if (cudaMalloc(&d_Iout, T * B * sizeof(__half)) != 0) {
+	if (cudaMalloc(&d_Iout, F * T * B * sizeof(__half)) != 0) {
 		std::cout << "cudaMalloc Iout failed!" << std::endl;
+		return -1;
+	}
+
+	// Copy data from CPU to GP
+	if (cudaMemcpy(d_Iin,h_Iin, F * T * rho * sizeof(__half),cudaMemcpyHostToDevice) != 0) {
+		std::cout << "cudaMemcpy Iin failed!" << std::endl;
+		return -1;
+	}
+	if (cudaMemcpy(d_W,h_W, F * rho * B * sizeof(__half),cudaMemcpyHostToDevice) != 0) {
+		std::cout << "cudaMemcpy W failed!" << std::endl;
 		return -1;
 	}
 
@@ -134,24 +144,9 @@ int main( int argc, char *argv[] ) {
 	double time0 = gettime();
 
 	for (int f = 0; f < F; f++) {	
-		// Copy data from CPU to GP
-		if (cudaMemcpy(d_Iin,h_Iin + f * T * rho, T * rho * sizeof(__half),cudaMemcpyHostToDevice) != 0) {
-			std::cout << "cudaMemcpy Iin failed!" << std::endl;
-			return -1;
-		}
-		if (cudaMemcpy(d_W,h_W + f * rho * B, rho * B * sizeof(__half),cudaMemcpyHostToDevice) != 0) {
-			std::cout << "cudaMemcpy W failed!" << std::endl;
-			return -1;
-		}
 
-		// Multiply A and B^T on GPU
-		if (cublasHgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, T, B, rho, &alpha, d_Iin, T, d_W, B, &beta, d_Iout, T) != 0) {
-			std::cout << "cudaMemcpy Iout failed!" << std::endl;
-			return -1;
-		}
-
-		// Copy the result on host memory
-		if (cudaMemcpy(h_Iout + f * T * B, d_Iout,T * B * sizeof(__half),cudaMemcpyDeviceToHost) != 0) {
+		// Multiply A and B^T (at depth f) on GPU
+		if (cublasHgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, T, B, rho, &alpha, d_Iin + f * T * rho, T, d_W + f * rho * B, B, &beta, d_Iout + f * T * B, T) != 0) {
 			std::cout << "cudaMemcpy Iout failed!" << std::endl;
 			return -1;
 		}
@@ -161,6 +156,12 @@ int main( int argc, char *argv[] ) {
 	// end timer
 	double time1 = gettime();
 	std::cout << "Operations finished in " << time1 - time0 << "s" << std::endl;
+
+	// Copy the result on host memory
+	if (cudaMemcpy(h_Iout, d_Iout, F * T * B * sizeof(__half),cudaMemcpyDeviceToHost) != 0) {
+		std::cout << "cudaMemcpy Iout failed!" << std::endl;
+		return -1;
+	}
 
 	if (argc == 2 and (strcmp(argv[1], "test") == 0 or strcmp(argv[1], "testones") == 0)) { // can delete later
 		// Print Result 
