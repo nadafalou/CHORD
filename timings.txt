@@ -1,0 +1,73 @@
+============ F = 52 ===========
+1 cublasHgemm operations on average finished in 0.011513s
+2 cublasHgemm operations on average finished in 0.0111979s
+3 cublasHgemm operations on average finished in 0.0111937s
+4 cublasHgemm operations on average finished in 0.0111905s
+5 cublasHgemm operations on average finished in 0.0111886s
+6 cublasHgemm operations on average finished in 0.0111927s
+7 cublasHgemm operations on average finished in 0.0111967s
+8 cublasHgemm operations on average finished in 0.0111871s
+9 cublasHgemm operations on average finished in 0.0111925s
+10 cublasHgemm operations on average finished in 0.0111899s
+11 cublasHgemm operations on average finished in 0.0111935s
+12 cublasHgemm operations on average finished in 0.0111918s
+13 cublasHgemm operations on average finished in 0.0111891s
+14 cublasHgemm operations on average finished in 0.0111896s
+15 cublasHgemm operations on average finished in 0.0111961s
+16 cublasHgemm operations on average finished in 0.0111934s
+17 cublasHgemm operations on average finished in 0.0111921s
+18 cublasHgemm operations on average finished in 0.0111925s
+19 cublasHgemm operations on average finished in 0.0111924s
+20 cublasHgemm operations on average finished in 0.0111919s
+1 cublasHgemmBatched operations on average finished in 0.011025s
+2 cublasHgemmBatched operations on average finished in 0.0109545s
+3 cublasHgemmBatched operations on average finished in 0.01095s
+4 cublasHgemmBatched operations on average finished in 0.0109505s
+5 cublasHgemmBatched operations on average finished in 0.0109458s
+6 cublasHgemmBatched operations on average finished in 0.0109497s
+7 cublasHgemmBatched operations on average finished in 0.0109527s
+8 cublasHgemmBatched operations on average finished in 0.0109494s
+9 cublasHgemmBatched operations on average finished in 0.0109505s
+10 cublasHgemmBatched operations on average finished in 0.0109462s
+11 cublasHgemmBatched operations on average finished in 0.0109491s
+12 cublasHgemmBatched operations on average finished in 0.0109465s
+13 cublasHgemmBatched operations on average finished in 0.0109457s
+14 cublasHgemmBatched operations on average finished in 0.0109518s
+15 cublasHgemmBatched operations on average finished in 0.0109518s
+16 cublasHgemmBatched operations on average finished in 0.0109471s
+17 cublasHgemmBatched operations on average finished in 0.0109491s
+18 cublasHgemmBatched operations on average finished in 0.0109486s
+19 cublasHgemmBatched operations on average finished in 0.0109483s
+20 cublasHgemmBatched operations on average finished in 0.0109475s
+
+============ F = 63 ===========
+1 cublasHgemm operations on average finished in 0.0180202s
+1 cublasHgemmBatched operations on average finished in 0.010947s
+
+============ F = 64 ===========
+1 cublasHgemm operations on average finished in 0.0202169s
+1 cublasHgemmBatched operations on average finished in 0.0108292s
+
+============ F = 65 ===========
+1 cublasHgemm operations on average finished in 0.018239s
+1 cublasHgemmBatched operations on average finished in 0.013901s
+
+============ F = 66 ===========
+1 cublasHgemm operations on average finished in 0.015234s
+1 cublasHgemmBatched operations on average finished in 0.0120389s
+
+============ F = 127 ===========
+1 cublasHgemm operations on average finished in 0.0176358s
+1 cublasHgemmBatched operations on average finished in 0.015933s
+
+============ F = 128 ===========
+1 cublasHgemm operations on average finished in 0.0125721s
+1 cublasHgemmBatched operations on average finished in 0.0113931s
+
+============ F = 129 ===========
+1 cublasHgemm operations on average finished in 0.0241911s
+1 cublasHgemmBatched operations on average finished in 0.0221581s
+
+============ F = 256 ===========
+1 cublasHgemm operations on average finished in 0.0174701s
+1 cublasHgemmBatched operations on average finished in 0.0177348s
