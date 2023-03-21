@@ -33,7 +33,7 @@ void fill_manual(__half *h_Iin, __half *h_W, __half **h_Iin_b, __half **h_W_b, s
 		}
 		for (int i = j * rho * B; i < (j + 1) * rho * B; i++) {
 			h_W[i] = 0;
-			if (i == 2 + j * B * rho or i == 5 + j * B * rho or i == 7 + j * B * rho or i == 14 + j * B * rho or i == 15 + j * B * rho or i == 18) { h_W[i] = 1; } 	
+			if (i == 2 + j * B * rho or i == 5 + j * B * rho or i == 7 + j * B * rho or i == 11 + j * B * rho) { h_W[i] = 1; } 	
 		}
 	}
 
@@ -158,7 +158,7 @@ void HtoD_copy(__half **h_Iin, __half **h_W, __half ***h_Iin_b, __half ***h_W_b,
 }
 
 
-void DtoH_copy(__half **h_Iout, __half ***h_Iout_b, __half **d_Iout, __half ***d_Iout_b, size_t F, size_t B, size_t T) {
+void DtoH_copy(__half **h_Iout, __half **d_Iout, size_t F, size_t B, size_t T) {
 	// TODO figure out if I need to pass in pointer to arrays or not, and if the args passed into cudaMemcpy are correct (dereference?)
 	if (cudaMemcpy(*h_Iout, *d_Iout, F * T * B * sizeof(__half),cudaMemcpyDeviceToHost) != 0) {
 		std::cout << "cudaMemcpy Iout failed!" << std::endl;
@@ -209,13 +209,6 @@ int main( int argc, char *argv[] ) {
 			B = 3;
 		}
 	}
-
-	// Create a handle for CUBLAS
-	cublasHandle_t handle;
-	if (cublasCreate(&handle) != 0) {
-		std::cout << "cublasCreate failed!" << std::endl;
-		return -1;
-	}
 	
 	__half alpha = 1;
 	__half beta = 0;
@@ -237,6 +230,7 @@ int main( int argc, char *argv[] ) {
 		fill_ones(h_W, rho * B * F);
 	}
 
+
 	for (size_t f = 0; f < F; f++) { // for batched, set pointers to device memory in prep for copy
 		(h_Iin_b)[f] = d_Iin + f * T * rho;
 
@@ -250,14 +244,33 @@ int main( int argc, char *argv[] ) {
 		(h_Iout_b)[f] = temp;
 	} 
 
-	// if (argc == 2 and (strcmp(argv[1], "test") == 0 or strcmp(argv[1], "testones") == 0)) { // can delete later
-	// 	std::cout << "Iin =" << std::endl;
-	// 	print_matrix(h_Iin, T, rho, F);
-	// 	std::cout << "W =" << std::endl;
-	// 	print_matrix(h_W, B, rho, F);
-	// }
+
+	if (argc == 2 and (strcmp(argv[1], "test") == 0 or strcmp(argv[1], "testones") == 0)) { // can delete later
+		std::cout << "Iin =" << std::endl;
+		print_matrix(h_Iin, T, rho, F);
+		std::cout << "W =" << std::endl;
+		print_matrix(h_W, B, rho, F);
+	}
 
 	HtoD_copy(&h_Iin, &h_W, &h_Iin_b, &h_W_b, &h_Iout_b, &d_Iin, &d_W, &d_Iin_b, &d_W_b, &d_Iout_b, F, B, rho, T);
+
+	// Create a handle for CUBLAS
+	cublasHandle_t handle;
+	if (cublasCreate(&handle) != 0) {
+		std::cout << "cublasCreate failed!" << std::endl;
+		return -1;
+	}
+	
+	int nStreams = 4;
+	cudaStream_t stream[nStreams];
+
+	for (int i = 0; i < nStreams; i ++)
+	{
+		if (cudaStreamCreate(&stream[i]) != 0) {
+			std::cout << "cublasStreamCreate failed!" << std::endl;
+			return -1;
+		}
+	}
 
 	// start timer
 	cublasStatus_t err;
@@ -267,11 +280,19 @@ int main( int argc, char *argv[] ) {
 		return -1;
 	}
 
+	int calls_per_stream = F / nStreams; // be careful if not divisible
 	for (int i = 1; i <= 1; i += 1) {
 		double time0 = gettime();
 
 		for (int r = 0; r < i; r++) {
+			int stream_num = 0;
+			cublasSetStream(handle, stream[stream_num]);
 			for (int f = 0; f < F; f++) {	
+				if (calls_per_stream != 0 and f != 0 and f % calls_per_stream == 0){
+					stream_num ++;
+					cublasSetStream(handle, stream[stream_num]);
+				}
+
 				// Multiply A and B^T (at depth f) on GPU
 				if (cublasHgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T, T, B, rho, &alpha, d_Iin + f * T * rho, T, d_W + f * rho * B, B, &beta, d_Iout + f * T * B, T) != 0) {
 					std::cout << "cublasHgemm failed!" << std::endl;
@@ -288,6 +309,7 @@ int main( int argc, char *argv[] ) {
 		double time1 = gettime();
 		std::cout << i << " cublasHgemm operations on average finished in " << (time1 - time0) / (float) i << "s" << std::endl;
 	}
+
 
 	for (int i = 1; i <= 1; i += 1) {
 		double time2 = gettime();
@@ -308,16 +330,23 @@ int main( int argc, char *argv[] ) {
 		std::cout << i << " cublasHgemmBatched operations on average finished in " << (time3 - time2) / (float) i << "s" << std::endl;
 	}
 
-	// std::cout << "Temporarily ignoring seg fault after this line -- concerned with timing of operations" << std::endl;
-	// DtoH_copy(&h_Iout, &h_Iout_b, &d_Iout, &d_Iout_b, F, B, T);
 
-	// if (argc == 2 and (strcmp(argv[1], "test") == 0 or strcmp(argv[1], "testones") == 0)) { // can delete later
-	// 	// Print Result 
-	// 	std::cout << "Iout =" << std::endl;
-	// 	print_matrix(h_Iout, T, B, F);
-	// 	std::cout << "Iout_b =" << std::endl;
-	// 	print_matrix_b(h_Iout_b, T, B, F);
-	// }
+	if (argc == 2 and (strcmp(argv[1], "test") == 0 or strcmp(argv[1], "testones") == 0)) {
+		DtoH_copy(&h_Iout, &d_Iout, F, B, T);
+
+		// Print Result 
+		std::cout << "Iout =" << std::endl;
+		print_matrix(h_Iout, T, B, F);
+	}
+	
+
+	for (int i = 0; i < nStreams; i ++)
+	{
+		if (cudaStreamDestroy(stream[i]) != 0) {
+			std::cout << "cublasStreamDestroy failed!" << std::endl;
+			return -1;
+		}
+	}
 
 	// Destroy the handle
 	cublasDestroy(handle);
