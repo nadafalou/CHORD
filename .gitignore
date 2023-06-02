@@ -1,4 +1,5 @@
-mmul
+mmul/mmul
+transpose/transpose
 
 # Prerequisites
 *.d
