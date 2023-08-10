@@ -24,9 +24,12 @@ __global__ void downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, fl
 
     int n_p;
     int n = 0;
+    // Sum up data of N' time samples 
     for (n_p = 0; n_p < N_p; n_p++) {
+        // Get 4 feeds (packed into 1 uint32)
         uint32_t e = E[F * D / 2 * N_p * blockIdx.z + F * D / 2 * n_p + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x];
 
+        // Unpack uint32 into 4 complex numbers (each with real and imaginary components)
         e0_re = float(e & 0xf);
         e0_im = float((e >> 4) & 0xf);
         e1_re = float((e >> 8) & 0xf);
@@ -36,6 +39,7 @@ __global__ void downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, fl
         e3_re = float((e >> 24) & 0xf);
         e3_im = float((e >> 28) & 0xf);
 
+        // Square/tesseract and sum
         s1_0 += cmplx_square(e0_re, e0_im);
         s1_1 += cmplx_square(e1_re, e1_im);
         s1_2 += cmplx_square(e2_re, e2_im);
@@ -57,7 +61,8 @@ __global__ void downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, fl
         s2_p_3 += cmplx_tesseract(e3_re, e3_im);
 
 
-        // if n = N, write and reset s1, s2
+        // if n is a factor of N (the smaller downsampling factor), write out 
+        // to S1 and S2, and reset s1, s2 back to 0
         n++;
         if (n % N == 0) {
             S1[F * D / 2 * N * blockIdx.z + F * D / 2 * ((n - 1) / N) + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].x = s1_0;
@@ -75,7 +80,7 @@ __global__ void downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, fl
         }
     }
 
-    // write s1', s2'
+    // write out to S1' and S2'
     S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].x = s1_p_0;
     S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].y = s1_p_1;
     S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].z = s1_p_2;
@@ -92,6 +97,7 @@ int main() {
     uint32_t *h_E, *d_E;
     float *h_S1, *h_S2, *h_S1_p, *h_S2_p;
     float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
+    // Commented numbers are the real ones, current are for testing
     const size_t N = 2; // 256;
     const size_t N_p = 4; // 128 * 256;
     const size_t D = 64; // 512; // or 64
@@ -104,7 +110,7 @@ int main() {
     h_S1_p = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N_p));
     h_S2_p = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N_p));
 
-
+    // generate data
     for (int i = 0; i < D / 2 * F * T; i++) {
         uint32_t v = i << 28;
         v = v ^ ((i & 0xf) << 24);
@@ -121,40 +127,20 @@ int main() {
     }
     // printf("\n");
 
-    // float e0_re, e0_im, e1_re, e1_im, e2_re, e2_im, e3_re, e3_im;
-    // for (int l = 0; l < T; l++) {
-    //     printf("t = %d\n", l);
-    //     for (int r = 0; r < F; r++) {
-    //         for (int c = 0; c < D / 2; c++) {
-    //             uint32_t e = h_E[l * F * D / 2 + r * D / 2 + c];
-    //             // e0_re = float(e & 0xf); 
-    //             // e0_im = float((e >> 4) & 0xf);
-    //             // e1_re = float((e >> 8) & 0xf);
-    //             // e1_im = float((e >> 12) & 0xf);
-    //             // e2_re = float((e >> 16) & 0xf);
-    //             // e2_im = float((e >> 20) & 0xf);
-    //             // e3_re = float((e >> 24) & 0xf);
-    //             // e3_im = float((e >> 28) & 0xf);
-    //             // printf("%f %f %f %f %f %f %f %f", e0_re, e1_im, e1_re, e1_im, e2_re, e2_im, e3_re, e3_im);
-    //             // printf(" "); 
-    //             printf("( %lu ) ", (unsigned long) e);
-    //         }
-    //         printf("\n");
-    //     }
-    //     printf("\n");
-    // }
-
     gpuErrchk(cudaMalloc((void**)&d_E, sizeof(uint32_t) * D / 2 * F * T));
     gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(float4) * D / 2 * F * (T/N)));
     gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(float4) * D / 2 * F * (T/N)));
     gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(float4) * D / 2 * F * (T/N_p)));
     gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(float4) * D / 2 * F * (T/N_p)));
 
+    // Copy input array
     gpuErrchk(cudaMemcpy(d_E, h_E, sizeof(uint32_t) * D / 2 * F * T, cudaMemcpyHostToDevice));
 
-    dim3 blocks(F, D / (32 * 2), T/N_p);
-    dim3 threads(32);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
-                    // /4 bc 16 registers/thread, each holds 4 feeds. 16/4=4, one for each output array
+    // Block and thread dimensions
+    dim3 blocks(F,  2 * D / (32 * 4), T/N_p); // Each block contains 32 threads, each with 1 freq channel, 
+                                        // 4 feeds (packed into uint32) and N' time samples
+                                        // (the 2 is for polarisation, since each feed is a dish-polarisation pair)
+    dim3 threads(32);
 
     clock_t before = clock();
 
@@ -165,11 +151,13 @@ int main() {
     double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
     printf("Total time taken: %f \n", difference);
 
+    // Copy output arrays
     gpuErrchk(cudaMemcpy(h_S1, d_S1, 4 * sizeof(float) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(h_S2, d_S2, 4 * sizeof(float) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(h_S1_p, d_S1_p, 4 * sizeof(float) * D / 2 * F * (T/N_p), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(h_S2_p, d_S2_p, 4 * sizeof(float) * D / 2 * F * (T/N_p), cudaMemcpyDeviceToHost));
 
+    // Print h_S1_p
     // for (int t = 0; t < T / N_p; t++) {
     //     for (int f = 0; f < F; f++) {
     //         for (int feed = 0; feed < 4 * D / 2; feed++) {
