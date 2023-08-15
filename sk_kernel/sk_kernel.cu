@@ -101,8 +101,8 @@ int main() {
     const size_t N = 2; // 256;
     const size_t N_p = 4; // 128 * 256;
     const size_t D = 64; // 512; // or 64
-    const size_t T = 8; // 100000; // not set
-    const size_t F = 2; // 256; // not set
+    const size_t T = 12; // 100000; // not set
+    const size_t F = 3; // 256; // not set
 
     h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
     h_S1 = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N));
@@ -149,7 +149,8 @@ int main() {
     gpuErrchk(cudaDeviceSynchronize());
 
     double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
-    printf("Total time taken: %f \n", difference);
+    float bw = ((D * 2 * F * T) + 2 * (D * 2 * F * T/N_p) + 2 * (D * 2 * F * T/N)) * 4 / 1000000000 / difference;
+    printf("Total time taken: %f s \n Runtime bandwidth: %f GB/s\n", difference, bw);
 
     // Copy output arrays
     gpuErrchk(cudaMemcpy(h_S1, d_S1, 4 * sizeof(float) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
