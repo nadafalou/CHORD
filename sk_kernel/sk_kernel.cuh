@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
@@ -12,6 +15,11 @@ true) {
             exit(code);
     }
 }
+
+/**
+ * Fills matrix with random values
+*/
+void generate_random(uint32_t *, size_t);
 
 /**
  * Returns square of float
