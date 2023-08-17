@@ -1,10 +1,11 @@
 mmul/mmul
 transpose/transpose
-sk_kernel/sk_kernel
-test_downsample
+sk_kernel/main
+sk_kernel/test
 test_downsample_old*
 CUnit*
 Downloads
+*.o
 
 
 # Prerequisites
