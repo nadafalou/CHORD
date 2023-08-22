@@ -7,7 +7,7 @@ int main() {
     // Commented numbers are the real ones, current are for testing
     const size_t N = 256;
     const size_t N_p = 128 * 256;
-    const size_t D = 512; // or 64
+    const size_t D = 512; // 512 or 64
     const size_t T = 98304; // not set
     const size_t F = 256; // not set
 
@@ -30,10 +30,14 @@ int main() {
     gpuErrchk(cudaMemcpy(d_E, h_E, sizeof(uint32_t) * D / 2 * F * T, cudaMemcpyHostToDevice));
 
     // Block and thread dimensions
-    dim3 blocks(F,  2 * D / (32 * 4), T/N_p); // Each block contains 32 threads, each with 1 freq channel, 
+    // TODO safe to assume D = 64 or 512 ONLY?
+    dim3 blocks(F, D == 64 ? D / (32 * 2) : D / (32 * 4 * 2), T/N_p); // Each block contains 1 or 4 warps, each 32 threads, 
+                                        // each with 1 freq channel, 
                                         // 4 feeds (packed into uint32) and N' time samples
                                         // (the 2 is for polarisation, since each feed is a dish-polarisation pair)
-    dim3 threads(32);
+    dim3 threads(D == 64 ? 32 : 32 * 4);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
+                    // /4 bc 16 registers/thread, each holds 4 feeds. 16/4=4, one for each output array
+
 
     clock_t before = clock();
 

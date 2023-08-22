@@ -138,7 +138,7 @@ void test_downsample() {
     float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
     const size_t N = 10;
     const size_t N_p = 20;
-    const size_t D = 512;
+    const size_t D = 64; // 64 or 512
     const size_t T = 10000;
     const size_t F = 50;
 
@@ -159,8 +159,9 @@ void test_downsample() {
     gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(float4) * D / 2 * F * (T/N_p)));
     gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(float4) * D / 2 * F * (T/N_p)));
 
-    dim3 blocks(F, D / (32 * 2), T/N_p);
-    dim3 threads(32);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
+    // TODO safe to assume D = 64 or 512 ONLY?
+    dim3 blocks(F, D == 64 ? D / (32 * 2) : D / (32 * 4 * 2), T/N_p);
+    dim3 threads(D == 64 ? 32 : 32 * 4);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
                     // /4 bc 16 registers/thread, each holds 4 feeds. 16/4=4, one for each output array
 
 

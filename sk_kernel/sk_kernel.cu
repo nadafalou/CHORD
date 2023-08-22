@@ -61,14 +61,14 @@ __global__ void downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, fl
     // optimisation did not make a difference 
     // E += F * D / 2 * N_p * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x;
 
-    size_t S_index = (F * (D / 2) * (N_p / N) * blockIdx.z) + ((D / 2) * blockIdx.x) + (32 * blockIdx.y) + threadIdx.x;
+    size_t S_index = (F * (D / 2) * (N_p / N) * blockIdx.z) + ((D / 2) * blockIdx.x) + (32 * 4 * blockIdx.y) + threadIdx.x;
     S1 += S_index;
     S2 += S_index;
 
     // Sum up data of N' time samples
     for (n_p = 0; n_p < N_p; n_p++) {
         // Get 4 feeds (packed into 1 uint32)
-        uint32_t e = E[F * D / 2 * N_p * blockIdx.z + F * D / 2 * n_p + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x];
+        uint32_t e = E[F * D / 2 * N_p * blockIdx.z + F * D / 2 * n_p + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x];
         
         // uint32_t e = E[F * D / 2 * n_p];
 
@@ -141,13 +141,13 @@ __global__ void downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, fl
     // write out to S1' and S2'
     // optimisation did not make a difference
     // size_t write_index = F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x;
-    S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].x = s1_p_0;
-    S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].y = s1_p_1;
-    S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].z = s1_p_2;
-    S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].w = s1_p_3;
+    S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x].x = s1_p_0;
+    S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x].y = s1_p_1;
+    S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x].z = s1_p_2;
+    S1_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x].w = s1_p_3;
 
-    S2_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].x = s2_p_0;
-    S2_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].y = s2_p_1;
-    S2_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].z = s2_p_2;
-    S2_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * blockIdx.y + threadIdx.x].w = s2_p_3;
+    S2_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x].x = s2_p_0;
+    S2_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x].y = s2_p_1;
+    S2_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x].z = s2_p_2;
+    S2_p[F * D / 2 * blockIdx.z + D / 2 * blockIdx.x + 32 * 4 * blockIdx.y + threadIdx.x].w = s2_p_3;
 }
