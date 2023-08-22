@@ -138,7 +138,7 @@ void test_downsample() {
     float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
     const size_t N = 10;
     const size_t N_p = 20;
-    const size_t D = 64; // 64 or 512
+    const size_t D = 512; // 64 or 512
     const size_t T = 10000;
     const size_t F = 50;
 
