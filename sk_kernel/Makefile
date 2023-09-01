@@ -1,8 +1,8 @@
 CC=/usr/local/cuda/bin/nvcc
 
-DEPS = sk_kernel.cuh
+DEPS = sk_kernel.cuh mask.cuh
 
-OBJ = sk_kernel.o
+OBJ = sk_kernel.o mask.o
 
 %.o: %.cu $(DEPS)
 	$(CC) -c -o $@ $< 
@@ -10,7 +10,7 @@ OBJ = sk_kernel.o
 main: $(OBJ) main.o 
 	$(CC) -o $@ $^ 
 
-test: $(OBJ) test_downsample.o
+test: $(OBJ) test.o
 	$(CC) -o $@ $^ 
 
 .PHONY: clean
