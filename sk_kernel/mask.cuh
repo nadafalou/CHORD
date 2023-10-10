@@ -10,12 +10,14 @@
 /**
  * Fills matrix with 0 and 1s randomly
 */
-void generate_random_ones(bool *, size_t);
+void generate_random_ones(uint32_t *, size_t);
 
 /**
  * Fills matrix with random floats
 */
 void generate_random_float4(float4 *, size_t);
+
+void generate_noise_array(uint32_t*, size_t);
 
 __device__ float d_M_func(float);
 
@@ -37,4 +39,4 @@ __device__ float d_V_func(float);
  * @param mu_min Minimum for mu to be considered good
  * @param N_good_min Minimum number of good feeds to continue
 */
-__global__ void mask(bool *, bool *, float4 *, float4 *, size_t, size_t, size_t, size_t, float, float);
+__global__ void mask(uint32_t *, uint32_t *, float *, float *, size_t, size_t, size_t, size_t, float, float, float, float*, float*, float*);

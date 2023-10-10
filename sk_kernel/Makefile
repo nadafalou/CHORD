@@ -5,13 +5,13 @@ DEPS = sk_kernel.cuh mask.cuh
 OBJ = sk_kernel.o mask.o
 
 %.o: %.cu $(DEPS)
-	$(CC) -c -o $@ $< 
+	$(CC) -g -G -c -o $@ $< 
 
 main: $(OBJ) main.o 
 	$(CC) -o $@ $^ 
 
 test: $(OBJ) test.o
-	$(CC) -o $@ $^ 
+	$(CC) -g -G -o $@ $^ 
 
 .PHONY: clean
 

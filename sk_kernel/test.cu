@@ -12,9 +12,20 @@ bool float4_arrays_equal(float4 *arr1, float4 *arr2, size_t size) {
     return true;
 }
 
-bool bool_arrays_equal(bool *arr1, bool *arr2, size_t size) {
+bool uint32_arrays_equal(uint32_t *arr1, uint32_t *arr2, size_t size) {
     for (size_t i = 0; i < size; i++) {
         if (arr1[i] != arr2[i]) {
+            printf("first fail at index %lu: %lu != %lu \n", i, (unsigned long) arr1[i], (unsigned long) arr2[i]);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool float_arrays_equal(float *arr1, float *arr2, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        if (0.7 > arr1[i] / arr2[i] | arr1[i] / arr2[i] > 1.3) {
+            printf("first fail at index %lu: %f != %f \n", i, arr1[i], arr2[i]);
             return false;
         }
     }
@@ -149,11 +160,12 @@ float V_func(float mu) {
 }
 
 
-void naive_mask(bool *R, bool *W, float4 *S1, float4 *S2, size_t N, size_t D, size_t T_bar, size_t F, float mu_min, float N_good_min) {
-    int N_good = 0;
+void naive_mask(uint32_t *R, uint32_t *W, float4 *S1, float4 *S2, size_t N, size_t D, size_t T_bar, size_t F, float mu_min, float N_good_min, float sigma, float *SK, float *mean_SK, float *var_SK) {
+    float N_good = 0;
     for (int w = 0; w < D * 2; w++) {
-        N_good += int(W[w]);
+        N_good += (int) W[w];
     }
+    printf("N_good = %f \n", N_good);
 
     if (N_good < N_good_min) {
         for (int r = 0; r < F * T_bar / 32; r++) {
@@ -180,14 +192,15 @@ void naive_mask(bool *R, bool *W, float4 *S1, float4 *S2, size_t N, size_t D, si
         if (mu[s * 4 + 3] < mu_min) { S2_tilde[s * 4 + 3] = 0; } 
         else { S2_tilde[s * 4 + 3] = S2[s].w / (mu[s * 4 + 3] * mu[s * 4 + 3]); }
     }
+    printf("S1[0]=%f, mu[0]=%f, S2[0]=%f, S2_tilde[0]=%f\n", S1[0].x, mu[0], S2[0].x, S2_tilde[0]); 
 
     float sum;
     float mean_sum;
     float var_sum;
     
-    float frac = 1 / N_good + (N + 1) / (N - 1);
+    float frac = (1 / N_good) * (((float) N + 1) / (float) (N - 1));
     float mean_frac = 1 + 1 / N_good;
-    float var_frac = 4 / (h_square(N_good) * N);
+    float var_frac = 4 / (h_square(N_good) * (float) N);
 
     // these can be single floats since values are used to compute R in the same loop
     float sk; 
@@ -200,15 +213,32 @@ void naive_mask(bool *R, bool *W, float4 *S1, float4 *S2, size_t N, size_t D, si
             mean_sum = 0;
             var_sum = 0;
             for (int pd = 0; pd < D * 2; pd++) {
-                sum += W[pd] * (S2_tilde[t * D * 2 * F + f * D * 2 + pd] / N + 1);
-                mean_sum += W[pd] * M_func(mu[t * F * D * 2 + f * D * 2 + pd]);
-                var_sum += W[pd] * V_func(mu[t * F * D * 2 + f * D * 2 + pd]);
+                if (f == 0 & t == 0){ printf("sum=%f, w=%f, mu=%f, s2_tilde=%f, new=%f\n", sum, (float) W[pd], mu[t * F * D * 2 + f * D * 2 + pd], S2_tilde[t * F * D * 2 + f * D * 2 + pd], (float) W[pd] * ((S2_tilde[t * F * D * 2 + f * D * 2 + pd] / (float) N) - 1.)); }
+                if (mu[t * F * D * 2 + f * D * 2 + pd] >= mu_min){
+                    sum += (float) W[pd] * ((S2_tilde[t * F * D * 2 + f * D * 2 + pd] / (float) N) - 1.);
+                    mean_sum += (float) W[pd] * M_func(mu[t * F * D * 2 + f * D * 2 + pd]);
+                    var_sum += (float) W[pd] * V_func(mu[t * F * D * 2 + f * D * 2 + pd]);
+                }
+                // if (f == 0 & t == 0 & pd == 0){ printf("s2_tilde[0]=%f\n", S2_tilde[t * F * D * 2 + f * D * 2 + pd]); }
+                // if (f == 0 & t == 0) { printf("w=%lu, sum=%f, mean_sum=%f, var_sum=%f\n", (unsigned long) W[pd], sum, mean_sum, var_sum); }
             }
+            // printf("f=%d, t=%d, sum=%f, mean_sum=%f, var_sum=%f\n", f, t, sum, mean_sum, var_sum);
             sk = frac * sum;
             mean_sk = mean_frac * mean_sum;
             var_sk = var_frac * var_sum;
 
-            R[f * T_bar + t] = (abs(sk - mean_sk) <= 5 * sqrt(var_sk) ? true: false);
+            if (f == 0 & t == 0) { 
+            printf("at f=t=0, frac=%f, sum=%f, sk=%f, mean_sk=%f, var_sk=%f\n", frac, sum, sk, mean_sk, var_sk);
+            }
+
+            // R[f * T_bar + t] = ((abs(sk - mean_sk) <= (sigma * sqrt(var_sk))) ? true: false);
+            if (abs(sk - mean_sk) <= (sigma * sqrt(var_sk))) { R[f * T_bar + t] = true; }
+            else { R[f * T_bar + t] = false; }
+
+            // temp
+            SK[f * T_bar + t] = sk;
+            mean_SK[f * T_bar + t] = mean_sk;
+            var_SK[f * T_bar + t] = var_sk;
         }
     }
 }
@@ -219,11 +249,11 @@ void test_downsample() {
     float4 *h_S1, *h_S2, *h_S1_p, *h_S2_p;
     float4 *naive_S1, *naive_S2, *naive_S1_p, *naive_S2_p;
     float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
-    const size_t N = 10;
-    const size_t N_p = 20;
-    const size_t D = 512; // 64 or 512
-    const size_t T = 98304;
-    const size_t F = 50;
+    const size_t N = 2;//256;
+    const size_t N_p = 4;//256 * 128;
+    const size_t D = 64; // 64 or 512
+    const size_t T = 32;//98304;
+    const size_t F = 1;//50;
 
     h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
     h_S1 = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N));
@@ -318,94 +348,165 @@ void test_downsample() {
 
 void test_mask() {
     // declare everything
-    bool *h_R, *d_R, *h_W, *d_W;
-    bool *naive_R;
-    float4 *h_S1, *h_S2, *d_S1, *d_S2;
-    const size_t N = 2;
-    const size_t D = 32; // 64 or 512, needs to be multiple of 64
-    const size_t T_bar = 32;
+    uint32_t *h_E, *d_E;
+    uint32_t *h_R, *d_R, *h_W, *d_W;
+    uint32_t *naive_R;
+    float4 *h_S1, *h_S2, *h_S1_p, *h_S2_p, *d_S1, *d_S2, *d_S1_p, *d_S2_p;
+    const size_t N = 2;//2; 265;
+    const size_t N_p = 4;//4; 256 * 128;
+    const size_t D = 64; // 64 or 512, needs to be multiple of 64
+    const size_t T = 64; //64; 98304;
+    const size_t T_bar = T / N;
     const size_t F = 1;
+    const float sigma = 5;
+    float *naive_SK, *naive_mean_SK, *naive_var_SK, *d_SK, *d_mean_SK, *d_var_SK, *h_SK, *h_mean_SK, *h_var_SK; // temp for testing
 
     // malloc arrays on host
-    h_R = (bool*)malloc(sizeof(bool) * F * T_bar);
-    h_W = (bool*)malloc(sizeof(bool) * D * 2);
+    h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
+    h_R = (uint32_t*)malloc(sizeof(uint32_t) * F * T_bar);
+    h_W = (uint32_t*)malloc(sizeof(uint32_t) * D * 2);
     h_S1 = (float4*)malloc(sizeof(float4) * D / 2 * F * T_bar);
     h_S2 = (float4*)malloc(sizeof(float4) * D / 2 * F * T_bar);
+    h_S1_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
+    h_S2_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
 
-    naive_R = (bool*)malloc(sizeof(bool) * F * T_bar);
+    naive_R = (uint32_t*)malloc(sizeof(uint32_t) * F * T_bar);
 
-    // malloc arras on device
-    gpuErrchk(cudaMalloc((void**)&d_R, sizeof(uint32_t) * F * T_bar / 32));
-    gpuErrchk(cudaMalloc((void**)&d_W, sizeof(uint32_t) * D * 2 / 32));
+    // temp for testing
+    naive_SK = (float*)malloc(sizeof(float) * F * T/N);
+    naive_mean_SK = (float*)malloc(sizeof(float) * F * T/N);
+    naive_var_SK = (float*)malloc(sizeof(float) * F * T/N);
+    h_SK = (float*)malloc(sizeof(float) * F * T/N);
+    h_mean_SK = (float*)malloc(sizeof(float) * F * T/N);
+    h_var_SK = (float*)malloc(sizeof(float) * F * T/N);
+
+    // malloc arrays on device
+    gpuErrchk(cudaMalloc((void**)&d_E, sizeof(uint32_t) * D / 2 * F * T));
+    gpuErrchk(cudaMalloc((void**)&d_R, sizeof(uint32_t) * F * T_bar));
+    gpuErrchk(cudaMalloc((void**)&d_W, sizeof(uint32_t) * D * 2));
     gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(float4) * D / 2 * F * T_bar));
     gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(float4) * D / 2 * F * T_bar));
+    gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(float4) * D / 2 * F * T_bar));
+    gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(float4) * D / 2 * F * T_bar));
 
-    // define num blocks and threads
-    dim3 blocks(F, T_bar / 32);
-    dim3 threads(32 * 32); // 32 warps, each 32 threads (one coarse time index t_bar computed on each warp)
+    // temp for testing
+    gpuErrchk(cudaMalloc((void**)&d_SK, sizeof(float) * F * T/N));
+    gpuErrchk(cudaMalloc((void**)&d_mean_SK, sizeof(float) * F * T/N));
+    gpuErrchk(cudaMalloc((void**)&d_var_SK, sizeof(float) * F * T/N));
 
     // generate fake data 
     generate_random_ones(h_W, D * 2);
-    generate_random_float4(h_S1, D / 2 * F * T_bar);
-    generate_random_float4(h_S2, D / 2 * F * T_bar);
+    generate_noise_array(h_E, D / 2 * F * T);
+    // generate_random_float4(h_S1, D / 2 * F * T_bar);
+    // generate_random_float4(h_S2, D / 2 * F * T_bar);
+
+    dim3 down_blocks(F, D == 64 ? D / (32 * 2) : D / (32 * 4 * 2), T/N_p);
+    dim3 down_threads(D == 64 ? 32 : 32 * 4);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
+                    // /4 bc 16 registers/thread, each holds 4 feeds. 16/4=4, one for each output array
+    gpuErrchk(cudaMemcpy(d_E, h_E, sizeof(uint32_t) * D / 2 * F * T, cudaMemcpyHostToDevice));
+
+    downsample<<< down_blocks, down_threads >>>(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F); 
+
+    gpuErrchk(cudaDeviceSynchronize());
+
+    gpuErrchk(cudaMemcpy(h_S1, d_S1, sizeof(float4) * D / 2 * F * T_bar, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_S2, d_S2, sizeof(float4) * D / 2 * F * T_bar, cudaMemcpyDeviceToHost));
+
+    // =================== MASK =====================
 
     // start the timer for naive solution
     clock_t before_naive = clock();
 
     // run naive solution
-    naive_mask(naive_R, h_W, h_S1, h_S2, N, D, T_bar, F, 1, 1);
+    naive_mask(naive_R, h_W, h_S1, h_S2, N, D, T_bar, F, 1, 1, sigma, naive_SK, naive_mean_SK, naive_var_SK);
 
     // print bunch of inputs and outputs TODO delete
-    printf("W \n");
-    for (int pd = 0; pd < D * 2; pd++) {
-        printf("%d ", h_W[pd]);
-    }
-    printf("\n");
+    // printf("W \n");
+    // for (int pd = 0; pd < D * 2; pd++) {
+    //     printf("%d, ", h_W[pd]);
+    // }
+    // printf("\n");
 
-    printf("S1 \n");
-    for (int s = 0; s < D / 2 * F * T_bar; s++) {
-        printf("%f %f %f %f ", h_S1[s].x, h_S1[s].y, h_S1[s].z, h_S1[s].w);
-    }
-    printf("\n");
+    // printf("S1 \n");
+    // for (int s = 0; s < D / 2; s++) { // s < D / 2 * F * T_bar
+    //     printf("%f,%f,%f,%f,", h_S1[s].x, h_S1[s].y, h_S1[s].z, h_S1[s].w);
+    // }
+    // printf("\n");
 
-    printf("S2 \n");
-    for (int s = 0; s < D / 2 * F * T_bar; s++) {
-        printf("%f %f %f %f ", h_S2[s].x, h_S2[s].y, h_S2[s].z, h_S2[s].w);
-    }
-    printf("\n");
+    // printf("S2 \n");
+    // for (int s = 0; s < D / 2; s++) { // s < D / 2 * F * T_bar
+    //     printf("%f, %f, %f, %f, ", h_S2[s].x, h_S2[s].y, h_S2[s].z, h_S2[s].w);
+    // }
+    // printf("\n");
 
-    printf("R\n");
-    for (int f = 0; f < F; f++) {
-        for (int t = 0; t < T_bar; t++) {
-            printf("%d ", naive_R[f * T_bar + t]);
-        }
-        printf("\n");
-    }
+    // printf("S1[0] = %f, S2[0] = %f\n", h_S1[0].x, h_S2[0].x);
+
+    // printf("R\n");
+    // for (int f = 0; f < F; f++) {
+    //     for (int t = 0; t < T_bar; t++) {
+    //         printf("%d ", naive_R[f * T_bar + t]);
+    //     }
+    //     printf("\n");
+    // }
 
     // end naive timer
     double difference_naive = (double)(clock() - before_naive) / CLOCKS_PER_SEC;
 
     // copy input host to device
-    gpuErrchk(cudaMemcpy(d_W, h_W, sizeof(bool) * D * 2, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(d_S1, h_S1, sizeof(float4) * D / 2 * F * T_bar, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(d_S2, h_S2, sizeof(float4) * D / 2 * F * T_bar, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_W, h_W, sizeof(uint32_t) * D * 2, cudaMemcpyHostToDevice));
+    // gpuErrchk(cudaMemcpy(d_S1, h_S1, sizeof(float4) * D / 2 * F * T_bar, cudaMemcpyHostToDevice));
+    // gpuErrchk(cudaMemcpy(d_S2, h_S2, sizeof(float4) * D / 2 * F * T_bar, cudaMemcpyHostToDevice));
 
+    // define num blocks and threads
+    dim3 blocks(F, T_bar / 32);
+    dim3 threads(32 * 32); // 32 warps, each 32 threads (one coarse time index t_bar computed on each warp)
+
+    printf("blocks: %d, %d, %d; threads: %d, %d, %d \n", blocks.x, blocks.y, blocks.z, threads.x, threads.y, threads.z);
     // time and run parallel solution
     clock_t before = clock();
 
-    mask<<< blocks, threads >>>(d_R, d_W, d_S1, d_S2, N, D, T_bar, F, 1, 1); 
-    
+    mask<<< blocks, threads >>>(d_R, d_W, (float*) d_S1, (float*) d_S2, N, D, T_bar, F, 1, 1, sigma, d_SK, d_mean_SK, d_var_SK); 
+    printf("peek: %d\n", cudaPeekAtLastError());
+   
     gpuErrchk(cudaDeviceSynchronize());
+    printf("peek: %d\n", cudaPeekAtLastError());
 
     double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
 
-    // copt output device to host
-    gpuErrchk(cudaMemcpy(h_R, d_R, sizeof(bool) * F * T_bar, cudaMemcpyDeviceToHost));
+    // copy output device to host
+    gpuErrchk(cudaMemcpy(h_R, d_R, sizeof(uint32_t) * F * T_bar, cudaMemcpyDeviceToHost));
+    // test for testing
+    gpuErrchk(cudaMemcpy(h_SK, d_SK, sizeof(float) * F * T_bar, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_mean_SK, d_mean_SK, sizeof(float) * F * T_bar, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_var_SK, d_var_SK, sizeof(float) * F * T_bar, cudaMemcpyDeviceToHost));
+
+    // printf("GPU R\n");
+    // for (int f = 0; f < F; f++) {
+    //     for (int t = 0; t < T_bar; t++) {
+    //         printf("%d ", h_R[f * T_bar + t]);
+    //     }
+    //     printf("\n");
+    // }
 
     // check if solutions match
     bool match = true;
-    if (bool_arrays_equal(h_R, naive_R, F * T_bar) == 0) {
+    if (uint32_arrays_equal(h_R, naive_R, F * T_bar) == 0) {
         printf("R does not match \n");
+        match = false;
+    }
+
+    if (float_arrays_equal(h_SK, naive_SK, F * T_bar) == 0) {
+        printf("SK does not match \n");
+        match = false;
+    }
+
+    if (float_arrays_equal(h_mean_SK, naive_mean_SK, F * T_bar) == 0) {
+        printf("mean_SK does not match \n");
+        match = false;
+    }
+
+    if (float_arrays_equal(h_var_SK, naive_var_SK, F * T_bar) == 0) {
+        printf("var_SK does not match \n");
         match = false;
     }
 
