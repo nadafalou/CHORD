@@ -8,19 +8,24 @@
 
 
 /**
- * Fills matrix with 0 and 1s randomly
+ * Fills array with 0 and 1s randomly
 */
 void generate_random_ones(uint32_t *, size_t);
 
 /**
- * Fills matrix with random floats
+ * Fills array half with Gaussian and half with Lorenzian noise
+ * Goal is that the output of the masking kernel would be half ones and half zeroes
 */
-void generate_random_float4(float4 *, size_t);
-
 void generate_noise_array(uint32_t*, size_t);
 
+/**
+ * Mysterious function
+*/
 __device__ float d_M_func(float);
 
+/**
+ * Mysterious function
+*/
 __device__ float d_V_func(float);
 
 /**
