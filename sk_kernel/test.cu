@@ -238,11 +238,11 @@ void test_downsample() {
     float4 *h_S1, *h_S2, *h_S1_p, *h_S2_p;
     float4 *naive_S1, *naive_S2, *naive_S1_p, *naive_S2_p;
     float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
-    const size_t N = 2;//256;
-    const size_t N_p = 4;//256 * 128;
+    const size_t N = 256;
+    const size_t N_p = 256 * 128;
     const size_t D = 64; // 64 or 512
-    const size_t T = 32;//98304;
-    const size_t F = 1;//50;
+    const size_t T = 98304;
+    const size_t F = 256;
 
     h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
     h_S1 = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N));
@@ -312,6 +312,9 @@ void test_downsample() {
     printf("Naive runtime: %f \n", difference_naive);
     printf("Kernel runtime: %f \n", difference);
     printf("Solution match: %d \n", match);
+
+    float bw = ((D * 2 * F * T) + 2 * (sizeof(float) * D * 2 * F * T/N_p) + 2 * (sizeof(float) * D * 2 * F * T/N)) / 1000000000 / difference;
+    printf("Runtime bandwidth (kernel): %f GB/s\n", bw);
 }
 
 
@@ -323,7 +326,7 @@ void test_mask() {
     float4 *h_S1, *h_S2, *h_S1_p, *h_S2_p, *d_S1, *d_S2, *d_S1_p, *d_S2_p;
     const size_t N = 2;//2; 256;
     const size_t N_p = 4;//4; 256 * 128;
-    const size_t D = 512; // 64 or 512, needs to be multiple of 64
+    const size_t D = 64; // 64 or 512, needs to be multiple of 64
     const size_t T = 64; //64; 98304;
     const size_t T_bar = T / N;
     const size_t F = 5;

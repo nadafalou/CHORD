@@ -8,10 +8,10 @@ void run_downsample() {
     // Commented numbers are the real ones, current are for testing
     const size_t N = 256;
     const size_t N_p = 128 * 256;
-    const size_t D = 512; // 512 or 64
+    const size_t D = 64; // 512 or 64
     const size_t T = 98304; // not set
     const size_t F = 256; // not set
-    const int num_runs = 10;
+    const int num_runs = 1;
 
     h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
     h_S1 = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N));
@@ -50,8 +50,8 @@ void run_downsample() {
     gpuErrchk(cudaDeviceSynchronize());
 
     double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
-    float bw = ((D * 2 * F * T) + 2 * (D * 2 * F * T/N_p) + 2 * (D * 2 * F * T/N)) / 1000000000 / difference;
-    printf("Total time taken: %f s \n Runtime bandwidth: %f GB/s\n", difference / num_runs, bw * num_runs);
+    float bw = ((D * 2 * F * T) + 2 * (sizeof(float) * D * 2 * F * T/N_p) + 2 * (sizeof(float) * D * 2 * F * T/N)) / 1000000000 / difference;
+    printf("Time taken per run: %f s \n Runtime bandwidth: %f GB/s\n", difference / num_runs, bw * num_runs);
 }
 
 void run_mask() {
@@ -69,7 +69,7 @@ void run_mask() {
     const float sigma = 5;
     const float N_good_min = 1;
     const float mu_min = 1;
-    const int num_runs = 10;
+    const int num_runs = 1;
 
     printf("Mallocing...\n");
 
@@ -133,8 +133,7 @@ void run_mask() {
     gpuErrchk(cudaDeviceSynchronize());
 
     double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
-    // double bw = ((D * 2 * F * T) + 2 * (D * 2 * F * T/N_p) + 2 * (D * 2 * F * T/N)) / 1000000000 / difference; // E + S1 + S2 + S1' + S2'
-    double bw = (2 * (D * 2 * F * T/N_p) + 2 * (D * 2 * F * T/N)) / 1000000000 / difference; // S1 + S2 + S1' + S2'
+    float bw = ((D * 2 * F * T) + 2 * (sizeof(float) * D * 2 * F * T/N_p) + 2 * (sizeof(float) * D * 2 * F * T/N)) / 1000000000 / difference;
     printf("**Downsample Kernel**\n");
     printf("Total time taken: %f s \n Runtime bandwidth: %f GB/s\n", difference / num_runs, bw * num_runs);
     
@@ -167,12 +166,12 @@ void run_mask() {
 
     double mask_difference = (double)(clock() - before_mask) / CLOCKS_PER_SEC;
     // double mask_bw = (double) ((F * T_bar) + (D * 2) + 2 * (D * 2 * F * T_bar)) / 1000000000 / mask_difference; // R + W + S1 + S2
-    double mask_bw = (double) ((D * 2) + 2 * (D * 2 * F * T_bar)) / 1000000000 / mask_difference; // W + S1 + S2
+    double mask_bw = ((double) ((sizeof(float) * D * 2) + 2 * (sizeof(float) * D * 2 * F * T_bar))) / 1000000000 / mask_difference; // W + S1 + S2
     printf("**Masking Kernel**\n");
     printf("Total time taken: %f s \n Runtime bandwidth: %f GB/s\n", mask_difference / num_runs, mask_bw * num_runs);
 }
 
 int main() {
-    // run_downsample();
-    run_mask();
+    run_downsample();
+    // run_mask();
 }

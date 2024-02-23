@@ -1,17 +1,17 @@
-CC=/usr/local/cuda/bin/nvcc
+CC=/usr/local/cuda/bin/nvcc -arch=sm_86
 
-DEPS = sk_kernel.cuh mask.cuh
+DEPS = sk_kernel.cuh mask.cuh small.cuh
 
-OBJ = sk_kernel.o mask.o
+OBJ = sk_kernel.o mask.o small.o
 
 %.o: %.cu $(DEPS)
-	$(CC) -g -G -c -o $@ $< 
+	$(CC) -g -c -O 2 -o $@ $< 
 
 main: $(OBJ) main.o 
-	$(CC) -o $@ $^ 
+	$(CC) -O 2 -o $@ $^ 
 
 test: $(OBJ) test.o
-	$(CC) -g -G -o $@ $^ 
+	$(CC) -g -o $@ $^ 
 
 .PHONY: clean
 

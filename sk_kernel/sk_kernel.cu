@@ -16,15 +16,15 @@ void generate_random(uint32_t *arr, size_t size) {
     }
 }
 
-__device__ float square(float num) {
+__device__ __forceinline__ int square(int num) {
     return num * num;
 }
 
-__device__ float cmplx_square(float real, float imaginary) {
+__device__ __forceinline__ int cmplx_square(int real, int imaginary) {
     return square(real) + square(imaginary);
 }
 
-__device__ float cmplx_tesseract(float real, float imaginary) { 
+__device__ __forceinline__ int cmplx_tesseract(int real, int imaginary) { 
     return square(cmplx_square(real, imaginary));
 }
 
@@ -45,16 +45,16 @@ __device__ void store_float4(float4 *p, float x, float y, float z, float w) {
     *p = tmp;
 }
 
-__global__ void downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
+__global__ void __launch_bounds__(32, 4) downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
     // if each thread took one time sample, not N':
     int num_threads;
     D == 64 ? num_threads = 32 : num_threads = 32 * 4;
 
-    float s1_0, s1_1, s1_2, s1_3, s2_0, s2_1, s2_2, s2_3;
+    int s1_0, s1_1, s1_2, s1_3, s2_0, s2_1, s2_2, s2_3;
     s1_0 = s1_1 = s1_2 = s1_3 = s2_0 = s2_1 = s2_2 = s2_3 = 0;
-    float s1_p_0, s1_p_1, s1_p_2, s1_p_3, s2_p_0, s2_p_1, s2_p_2, s2_p_3;
+    int s1_p_0, s1_p_1, s1_p_2, s1_p_3, s2_p_0, s2_p_1, s2_p_2, s2_p_3;
     s1_p_0 = s1_p_1 = s1_p_2 = s1_p_3 = s2_p_0 = s2_p_1 = s2_p_2 = s2_p_3 = 0;
-    float e0_re, e0_im, e1_re, e1_im, e2_re, e2_im, e3_re, e3_im;
+    int e0_re, e0_im, e1_re, e1_im, e2_re, e2_im, e3_re, e3_im;
     e0_re = e0_im = e1_re = e1_im = e2_re = e2_im = e3_re = e3_im = 0;
 
     int n_p;
@@ -75,14 +75,14 @@ __global__ void downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, fl
         // uint32_t e = E[F * D / 2 * n_p];
 
         // Unpack uint32 into 4 complex numbers (each with real and imaginary components)
-        e0_re = float(e & 0xf);
-        e0_im = float((e >> 4) & 0xf);
-        e1_re = float((e >> 8) & 0xf);
-        e1_im = float((e >> 12) & 0xf);
-        e2_re = float((e >> 16) & 0xf);
-        e2_im = float((e >> 20) & 0xf);
-        e3_re = float((e >> 24) & 0xf);
-        e3_im = float((e >> 28) & 0xf);
+        e0_re = int(e & 0xf);
+        e0_im = int((e >> 4) & 0xf);
+        e1_re = int((e >> 8) & 0xf);
+        e1_im = int((e >> 12) & 0xf);
+        e2_re = int((e >> 16) & 0xf);
+        e2_im = int((e >> 20) & 0xf);
+        e3_re = int((e >> 24) & 0xf);
+        e3_im = int((e >> 28) & 0xf);
 
         // Square/tesseract and sum
         s1_0 += cmplx_square(e0_re, e0_im);

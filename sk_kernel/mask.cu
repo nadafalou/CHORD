@@ -11,13 +11,13 @@ void generate_random_ones(uint32_t *arr, size_t size) {
 
 
 // helper function for generate_noise_array
-int generate_gaussian_number(double mean, double stdDev) {
-    double z0, z1;
+int generate_gaussian_number(int mean, int stdDev) {
+    int z0, z1;
 
-    double u1, u2;
+    int u1, u2;
     do {
-        u1 = rand() / (double)RAND_MAX;
-        u2 = rand() / (double)RAND_MAX;
+        u1 = rand() / (int)RAND_MAX;
+        u2 = rand() / (int)RAND_MAX;
     } while (u1 <= DBL_EPSILON);
 
     z0 = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
@@ -28,8 +28,8 @@ int generate_gaussian_number(double mean, double stdDev) {
 
 
 // helper function for generate_noise_array
-int generate_lorentzian_number(double location, double scale) {
-    double u = rand() / (double)RAND_MAX;
+int generate_lorentzian_number(int location, int scale) {
+    int u = rand() / (int)RAND_MAX;
     return (int)round(location + scale * tan(M_PI * (u - 0.5)));
 }
 
@@ -37,11 +37,11 @@ int generate_lorentzian_number(double location, double scale) {
 void generate_noise_array(uint32_t* arr, size_t size) {
     srand(time(NULL)); // Seed the random number generator with the current time
 
-    double mean = 0.0;  // Mean of the Gaussian distribution
-    double stdDev = 1.0; // Standard deviation of the Gaussian distribution
+    int mean = 0.0;  // Mean of the Gaussian distribution
+    int stdDev = 1.0; // Standard deviation of the Gaussian distribution
 
-    double location = 0.0; // Location parameter of the Lorentzian distribution
-    double scale = 1.0; // Scale parameter of the Lorentzian distribution
+    int location = 0.0; // Location parameter of the Lorentzian distribution
+    int scale = 1.0; // Scale parameter of the Lorentzian distribution
 
     for (int i = 0; i < size / 2; i++) {
         uint32_t e = generate_gaussian_number(mean, stdDev) << 28;
@@ -84,14 +84,14 @@ __global__ void __launch_bounds__(1024, 1) mask(uint32_t *R, uint32_t *W, float 
     int th_col = threadIdx.x % 32; // thread num
     int th_row = threadIdx.x / 32; // warp num: 1 t each
 
-    float N_good = 0;
+    int N_good = 0;
     // sum up W's corresponding to feeds in this thread
     for (int i = th_col; i < D * 2; i = i + 32) {
         N_good += W[i];
     }
 
     // sum up N_good from all threads
-    for (int p = 0; p <= 4; p++) { N_good = N_good + __shfl_sync(0xffffffff, N_good, threadIdx.x ^ (int) pow(2, p)); }
+    for (int p = 0; p <= 4; p++) { N_good = N_good + __shfl_sync(0xffffffff, N_good, threadIdx.x ^ (1 << p)); }
 
     // check if there are enough good feeds to continue
     if (N_good < N_good_min) { 
@@ -125,7 +125,7 @@ __global__ void __launch_bounds__(1024, 1) mask(uint32_t *R, uint32_t *W, float 
 
     int source;
     for (int p = 0; p <= 4; p++) {
-        source = threadIdx.x ^ (int) pow(2, p);
+        source = threadIdx.x ^ (1 << p);
         sum = sum + __shfl_sync(0xffffffff, sum, source);
         mean_sum = mean_sum + __shfl_sync(0xffffffff, mean_sum, source);
         var_sum = var_sum + __shfl_sync(0xffffffff, var_sum, source);
@@ -146,8 +146,9 @@ __global__ void __launch_bounds__(1024, 1) mask(uint32_t *R, uint32_t *W, float 
         R[blockIdx.x * T_bar + blockIdx.y * 32 + th_row] = (abs(sk - mean_sk) <= sigma * sqrt(var_sk) ? true: false);
 
         // TODO delete later
-        SK[blockIdx.x * T_bar + blockIdx.y * 32 + th_row] = sk;
-        mean_SK[blockIdx.x * T_bar + blockIdx.y * 32 + th_row] = mean_sk;
-        var_SK[blockIdx.x * T_bar + blockIdx.y * 32 + th_row] = var_sk;
+        // SK[blockIdx.x * T_bar + blockIdx.y * 32 + th_row] = sk;
+        // mean_SK[blockIdx.x * T_bar + blockIdx.y * 32 + th_row] = mean_sk;
+        // var_SK[blockIdx.x * T_bar + blockIdx.y * 32 + th_row] = var_sk;
+        // R[blockIdx.x * T_bar + blockIdx.y * 32 + th_row] = N_good;
     }
 }

@@ -22,9 +22,9 @@ true) {
 void generate_random(uint32_t *, size_t);
 
 /**
- * Returns square of float
+ * Returns square of int
 */
-__device__ float square(float);
+__device__ __forceinline__ int square(int);
 
 /**
  * Returns the square of a complex number
@@ -32,7 +32,7 @@ __device__ float square(float);
  * Given a complex numebr <real + i * imaginary>, function returns
  * <real^2 + imaginary^2>
 */
-__device__ float cmplx_square(float, float);
+__device__ __forceinline__ int cmplx_square(int, int);
 
 /**
  * Returns the tesseract (4th power) of a complex number
@@ -40,7 +40,7 @@ __device__ float cmplx_square(float, float);
  * Given a complex number <real + i * imaginary>, function returns
  * <(real^2 + imaginary^2)^2>
 */
-__device__ float cmplx_tesseract(float, float);
+__device__ __forceinline__ int cmplx_tesseract(int, int);
 
 /**
  * Downsamples the "raw" electric field array <E> and writes output to arrays
