@@ -45,7 +45,7 @@ __device__ void store_float4(float4 *p, float x, float y, float z, float w) {
     *p = tmp;
 }
 
-__global__ void __launch_bounds__(32, 4) downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
+__global__ void __launch_bounds__(128, 4) downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
     // if each thread took one time sample, not N':
     int num_threads;
     D == 64 ? num_threads = 32 : num_threads = 32 * 4;

@@ -39,7 +39,8 @@ void run_downsample(size_t N, size_t N_p, size_t D, size_t T, size_t F, int num_
     clock_t before = clock();
 
     for (int i = 0; i < num_runs; i++) {
-        downsample<<< blocks, threads >>>(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F); 
+        downsample<<< blocks, threads >>>(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F);
+	gpuErrchk(cudaPeekAtLastError());
     }
     
     gpuErrchk(cudaDeviceSynchronize());
