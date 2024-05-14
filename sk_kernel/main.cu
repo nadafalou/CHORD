@@ -1,35 +1,30 @@
 #include "sk_kernel.cuh"
 #include "mask.cuh"
 
-void run_downsample() {
+using namespace std;
+
+void run_downsample(size_t N, size_t N_p, size_t D, size_t T, size_t F, int num_runs=1) {
     uint32_t *h_E, *d_E;
-    float *h_S1, *h_S2, *h_S1_p, *h_S2_p;
     float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
-    // Commented numbers are the real ones, current are for testing
-    const size_t N = 256;
-    const size_t N_p = 128 * 256;
-    const size_t D = 64; // 512 or 64
-    const size_t T = 98304; // not set
-    const size_t F = 256; // not set
-    const int num_runs = 1;
 
-    h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
-    h_S1 = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N));
-    h_S2 = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N));
-    h_S1_p = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N_p));
-    h_S2_p = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N_p));
+    const size_t nbytes_E = sizeof(uint32_t) * (D/2) * F * T;
+    const size_t nbytes_S = 4 * sizeof(float) * (D/2) * F * (T/N);
+    const size_t nbytes_Sp = 4 * sizeof(float) * (D/2) * F * (T/N_p);
 
-    // generate data
-    generate_random(h_E, D / 2 * F * T);
+    h_E = (uint32_t*) malloc(nbytes_E);
 
-    gpuErrchk(cudaMalloc((void**)&d_E, sizeof(uint32_t) * D / 2 * F * T));
-    gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(float4) * D / 2 * F * (T/N)));
-    gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(float4) * D / 2 * F * (T/N)));
-    gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(float4) * D / 2 * F * (T/N_p)));
-    gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(float4) * D / 2 * F * (T/N_p)));
+    // Skip generate_random(), since it's slow, and zeroed data should be okay for timing.
+    // generate_random(h_E, D / 2 * F * T);
+    memset(h_E, 0, nbytes_E);
+
+    gpuErrchk(cudaMalloc((void**)&d_E, nbytes_E));
+    gpuErrchk(cudaMalloc((void**)&d_S1, nbytes_S));
+    gpuErrchk(cudaMalloc((void**)&d_S2, nbytes_S));
+    gpuErrchk(cudaMalloc((void**)&d_S1_p, nbytes_Sp));
+    gpuErrchk(cudaMalloc((void**)&d_S2_p, nbytes_Sp));
 
     // Copy input array
-    gpuErrchk(cudaMemcpy(d_E, h_E, sizeof(uint32_t) * D / 2 * F * T, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(d_E, h_E, nbytes_E, cudaMemcpyHostToDevice));
 
     // Block and thread dimensions
     // TODO safe to assume D = 64 or 512 ONLY?
@@ -49,9 +44,10 @@ void run_downsample() {
     
     gpuErrchk(cudaDeviceSynchronize());
 
-    double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
-    float bw = ((D * 2 * F * T) + 2 * (sizeof(float) * D * 2 * F * T/N_p) + 2 * (sizeof(float) * D * 2 * F * T/N)) / 1000000000 / difference;
-    printf("Time taken per run: %f s \n Runtime bandwidth: %f GB/s\n", difference / num_runs, bw * num_runs);
+    double time_per_run = (double)(clock() - before) / double(CLOCKS_PER_SEC) / double(num_runs);
+    double nbytes_tot = nbytes_E + 2*nbytes_S + 2*nbytes_Sp;
+    double bw = 1.0e-9 * nbytes_tot / time_per_run;  // Note factor 1.0e-9, to get GB/s
+    printf("Time taken per run: %f s \n Runtime bandwidth: %f GB/s\n", time_per_run, bw);
 }
 
 void run_mask() {
@@ -172,6 +168,13 @@ void run_mask() {
 }
 
 int main() {
-    run_downsample();
+    // Usage: run_downsample(N, N_p, D, T, F, num_runs)
+    
+    printf("run_downsample(): pathfinder params (D=64)\n");
+    run_downsample(256, 128*256, 64, 98304, 256, 10);
+
+    printf("run_downsample(): full CHORD params (D=512)\n");
+    run_downsample(256, 128*256, 512, 98304, 256, 1);
+
     // run_mask();
 }
