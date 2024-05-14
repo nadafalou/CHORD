@@ -26,22 +26,10 @@ void run_downsample(size_t N, size_t N_p, size_t D, size_t T, size_t F, int num_
     // Copy input array
     gpuErrchk(cudaMemcpy(d_E, h_E, nbytes_E, cudaMemcpyHostToDevice));
 
-    // Block and thread dimensions
-    // TODO safe to assume D = 64 or 512 ONLY?
-    dim3 blocks(F, D == 64 ? D / (32 * 2) : D / (32 * 4 * 2), T/N_p); // Each block contains 1 or 4 warps, each 32 threads, 
-                                        // each with 1 freq channel, 
-                                        // 4 feeds (packed into uint32) and N' time samples
-                                        // (the 2 is for polarisation, since each feed is a dish-polarisation pair)
-    dim3 threads(D == 64 ? 32 : 32 * 4);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
-                    // /4 bc 16 registers/thread, each holds 4 feeds. 16/4=4, one for each output array
-
-
     clock_t before = clock();
 
-    for (int i = 0; i < num_runs; i++) {
-        downsample<<< blocks, threads >>>(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F);
-	gpuErrchk(cudaPeekAtLastError());
-    }
+    for (int i = 0; i < num_runs; i++)
+	launch_downsample_kernel(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F);
     
     gpuErrchk(cudaDeviceSynchronize());
 
@@ -110,22 +98,12 @@ void run_mask() {
     // Copy input array
     gpuErrchk(cudaMemcpy(d_E, h_E, sizeof(uint32_t) * D / 2 * F * T, cudaMemcpyHostToDevice));
 
-    // Block and thread dimensions
-    // TODO safe to assume D = 64 or 512 ONLY?
-    dim3 blocks(F, D == 64 ? D / (32 * 2) : D / (32 * 4 * 2), T/N_p); // Each block contains 1 or 4 warps, each 32 threads, 
-                                        // each with 1 freq channel, 
-                                        // 4 feeds (packed into uint32) and N' time samples
-                                        // (the 2 is for polarisation, since each feed is a dish-polarisation pair)
-    dim3 threads(D == 64 ? 32 : 32 * 4);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
-                    // /4 bc 16 registers/thread, each holds 4 feeds. 16/4=4, one for each output array
-
     printf("Running downsample kernel...\n");
 
     clock_t before = clock();
 
-    for (int i = 0; i < num_runs; i++) {
-        downsample<<< blocks, threads >>>(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F); 
-    }
+    for (int i = 0; i < num_runs; i++)
+	launch_downsample_kernel(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F); 
     
     gpuErrchk(cudaDeviceSynchronize());
 

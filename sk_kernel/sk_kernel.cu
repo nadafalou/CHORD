@@ -1,4 +1,5 @@
 #include "sk_kernel.cuh"
+#include <stdexcept>  // std::runtime_error
 
 void generate_random(uint32_t *arr, size_t size) {
     srand(time(NULL)); 
@@ -45,7 +46,7 @@ __device__ void store_float4(float4 *p, float x, float y, float z, float w) {
     *p = tmp;
 }
 
-__global__ void __launch_bounds__(128, 4) downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
+__global__ void __launch_bounds__(128, 4) downsample(const uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
     // if each thread took one time sample, not N':
     int num_threads;
     D == 64 ? num_threads = 32 : num_threads = 32 * 4;
@@ -152,4 +153,56 @@ __global__ void __launch_bounds__(128, 4) downsample(uint32_t *E, float4 *S1, fl
     S2_p[write_index].y = s2_p_1;
     S2_p[write_index].z = s2_p_2;
     S2_p[write_index].w = s2_p_3;
+}
+
+
+
+void launch_downsample_kernel(const uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F, cudaStream_t stream)
+{
+    // Define some reasonable ranges for integer-valued arguments.
+    if ((F <= 0) || (F > 10000))
+	throw std::runtime_error("launch_downsample_kernel(): invalid value of F");
+    if ((D <= 0) || (D > 10000))
+	throw std::runtime_error("launch_downsample_kernel(): invalid value of D");
+    if ((T <= 0) || (T > 10*1000*1000))
+	throw std::runtime_error("launch_downsample_kernel(): invalid value of T");
+    if ((N <= 0) || (N > 10*1000*1000))
+	throw std::runtime_error("launch_downsample_kernel(): invalid value of N");
+    if ((N_p <= 0) || (N_p > 10*1000*1000))
+	throw std::runtime_error("launch_downsample_kernel(): invalid value of N_p");
+
+    // Check for null pointers. (Unfortunately this doesn't catch the common error of passing a host pointer
+    // instead of a device pointer, but I don't think there's a way to check for that!)
+
+    if (!E || !S1 || !S2 || !S1_p || !S2_p)
+	throw std::runtime_error("launch_downsample_kernel(): null array pointer was specified");
+
+    // Some nontrivial parameter checks.
+    if (N_p % N)
+	throw std::runtime_error("launch_downsample_kernel(): N_p must be a multiple of N");
+    if (T % N_p)
+	throw std::runtime_error("launch_downsample_kernel(): T must be a multiple of N_p");
+    if ((D != 64) && (D % 256))
+	throw std::runtime_error("launch_downsample_kernel(): invalid value of D (kernel currently supports 64 or multiple of 256)");
+
+    // This restriction arises because we set blocks.z = (T/N_p), and 65535 is the max value allowed by cuda.
+    // (Reference: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#features-and-technical-specifications)
+    if (T > 65535*N_p)
+	throw std::runtime_error("launch_downsample_kernel(): (T/N_p) cannot be larger than 65535");
+	 
+    // Each warp processes 128 feeds (i.e. dish-polarization pairs).
+    // If D==64 (i.e. 128 feeds), then we use one warp per threadblock.
+    // If D is a multiple of 256, then we use four warps per threadblock (and set blocks.y = (D/256)).
+    int threads = (D==64) ? 32 : 128;
+    
+    dim3 blocks;
+    blocks.x = F;
+    blocks.y = (D==64) ? 1 : (D/256);
+    blocks.z = T/N_p;
+
+    downsample <<< blocks, threads, 0, stream >>> (E, S1, S2, S1_p, S2_p, N, N_p, D, T, F);
+    cudaError_t err = cudaPeekAtLastError();
+    
+    if (err != cudaSuccess)
+	throw std::runtime_error("launch_downsample_kernel(): kernel launch failed!");
 }

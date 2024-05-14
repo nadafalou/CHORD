@@ -261,12 +261,6 @@ void test_downsample() {
     gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(float4) * D / 2 * F * (T/N_p)));
     gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(float4) * D / 2 * F * (T/N_p)));
 
-    // TODO safe to assume D = 64 or 512 ONLY?
-    dim3 blocks(F, D == 64 ? D / (32 * 2) : D / (32 * 4 * 2), T/N_p);
-    dim3 threads(D == 64 ? 32 : 32 * 4);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
-                    // /4 bc 16 registers/thread, each holds 4 feeds. 16/4=4, one for each output array
-
-
     generate_random(h_E, D / 2 * F * T);
 
     clock_t before_naive = clock();
@@ -279,12 +273,10 @@ void test_downsample() {
 
     clock_t before = clock();
 
-    downsample<<< blocks, threads >>>(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F); 
-    
+    launch_downsample_kernel(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F); 
     gpuErrchk(cudaDeviceSynchronize());
 
     double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
-
 
     gpuErrchk(cudaMemcpy(h_S1, d_S1, sizeof(float4) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
     gpuErrchk(cudaMemcpy(h_S2, d_S2, sizeof(float4) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
@@ -375,13 +367,9 @@ void test_mask() {
     generate_random_ones(h_W, D * 2);
     generate_noise_array(h_E, D / 2 * F * T);
 
-    dim3 down_blocks(F, D == 64 ? D / (32 * 2) : D / (32 * 4 * 2), T/N_p);
-    dim3 down_threads(D == 64 ? 32 : 32 * 4);  // originally 2D/4. 2D bc dish and x- or y- polarisation pairs, 
-                    // /4 bc 16 registers/thread, each holds 4 feeds. 16/4=4, one for each output array
     gpuErrchk(cudaMemcpy(d_E, h_E, sizeof(uint32_t) * D / 2 * F * T, cudaMemcpyHostToDevice));
 
-    downsample<<< down_blocks, down_threads >>>(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F); 
-
+    launch_downsample_kernel(d_E, d_S1, d_S2, d_S1_p, d_S2_p, N, N_p, D, T, F); 
     gpuErrchk(cudaDeviceSynchronize());
 
     naive_downsample(h_E, naive_S1, naive_S2, naive_S1_p, naive_S2_p, N, N_p, D, T, F);
