@@ -5,11 +5,11 @@ using namespace std;
 
 void run_downsample(size_t N, size_t N_p, size_t D, size_t T, size_t F, int num_runs=1) {
     uint32_t *h_E, *d_E;
-    float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
+    uint4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
 
     const size_t nbytes_E = sizeof(uint32_t) * (D/2) * F * T;
-    const size_t nbytes_S = 4 * sizeof(float) * (D/2) * F * (T/N);
-    const size_t nbytes_Sp = 4 * sizeof(float) * (D/2) * F * (T/N_p);
+    const size_t nbytes_S = 4 * sizeof(uint) * (D/2) * F * (T/N);
+    const size_t nbytes_Sp = 4 * sizeof(uint) * (D/2) * F * (T/N_p);
 
     h_E = (uint32_t*) malloc(nbytes_E);
 
@@ -42,8 +42,8 @@ void run_downsample(size_t N, size_t N_p, size_t D, size_t T, size_t F, int num_
 void run_mask() {
     uint32_t *h_E, *d_E;
     uint32_t *h_R, *d_R, *h_W, *d_W;
-    float *h_S1, *h_S2, *h_S1_p, *h_S2_p;
-    float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
+    uint *h_S1, *h_S2, *h_S1_p, *h_S2_p;
+    uint4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
 
     const size_t N = 256;
     const size_t N_p = 128 * 256;
@@ -61,10 +61,10 @@ void run_mask() {
     h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
     h_R = (uint32_t*)malloc(sizeof(uint32_t) * F * T_bar);
     h_W = (uint32_t*)malloc(sizeof(uint32_t) * D * 2);
-    h_S1 = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N));
-    h_S2 = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N));
-    h_S1_p = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N_p));
-    h_S2_p = (float*)malloc(4 * sizeof(float) * D / 2 * F * (T/N_p));
+    h_S1 = (uint*)malloc(4 * sizeof(uint) * D / 2 * F * (T/N));
+    h_S2 = (uint*)malloc(4 * sizeof(uint) * D / 2 * F * (T/N));
+    h_S1_p = (uint*)malloc(4 * sizeof(uint) * D / 2 * F * (T/N_p));
+    h_S2_p = (uint*)malloc(4 * sizeof(uint) * D / 2 * F * (T/N_p));
 
     printf("Filling arrays with random data...\n");
 
@@ -79,10 +79,10 @@ void run_mask() {
     gpuErrchk(cudaMalloc((void**)&d_E, sizeof(uint32_t) * D / 2 * F * T));
     gpuErrchk(cudaMalloc((void**)&d_R, sizeof(uint32_t) * F * T_bar));
     gpuErrchk(cudaMalloc((void**)&d_W, sizeof(uint32_t) * D * 2));
-    gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(float4) * D / 2 * F * (T/N)));
-    gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(float4) * D / 2 * F * (T/N)));
-    gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(float4) * D / 2 * F * (T/N_p)));
-    gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(float4) * D / 2 * F * (T/N_p)));
+    gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(uint4) * D / 2 * F * (T/N)));
+    gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(uint4) * D / 2 * F * (T/N)));
+    gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(uint4) * D / 2 * F * (T/N_p)));
+    gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(uint4) * D / 2 * F * (T/N_p)));
 
     // temp for testing
     float *d_SK, *d_mean_SK, *d_var_SK, *h_SK, *h_mean_SK, *h_var_SK; // temp for testing
@@ -108,7 +108,7 @@ void run_mask() {
     gpuErrchk(cudaDeviceSynchronize());
 
     double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
-    float bw = ((D * 2 * F * T) + 2 * (sizeof(float) * D * 2 * F * T/N_p) + 2 * (sizeof(float) * D * 2 * F * T/N)) / 1000000000 / difference;
+    float bw = ((D * 2 * F * T) + 2 * (sizeof(uint) * D * 2 * F * T/N_p) + 2 * (sizeof(uint) * D * 2 * F * T/N)) / 1000000000 / difference;
     printf("**Downsample Kernel**\n");
     printf("Total time taken: %f s \n Runtime bandwidth: %f GB/s\n", difference / num_runs, bw * num_runs);
     
@@ -134,14 +134,14 @@ void run_mask() {
     clock_t before_mask = clock();
     
     for (int i = 0; i < num_runs; i++) {
-        mask<<< blocks_mask, threads_mask >>>(d_R, d_W, (float*) d_S1, (float*) d_S2, N, D, T_bar, F, mu_min, N_good_min, sigma, d_SK, d_mean_SK, d_var_SK); 
+        mask<<< blocks_mask, threads_mask >>>(d_R, d_W, (uint*) d_S1, (uint*) d_S2, N, D, T_bar, F, mu_min, N_good_min, sigma, d_SK, d_mean_SK, d_var_SK); 
     }
    
     gpuErrchk(cudaDeviceSynchronize());
 
     double mask_difference = (double)(clock() - before_mask) / CLOCKS_PER_SEC;
     // double mask_bw = (double) ((F * T_bar) + (D * 2) + 2 * (D * 2 * F * T_bar)) / 1000000000 / mask_difference; // R + W + S1 + S2
-    double mask_bw = ((double) ((sizeof(float) * D * 2) + 2 * (sizeof(float) * D * 2 * F * T_bar))) / 1000000000 / mask_difference; // W + S1 + S2
+    double mask_bw = ((double) ((sizeof(float) * D * 2) + 2 * (sizeof(uint) * D * 2 * F * T_bar))) / 1000000000 / mask_difference; // W + S1 + S2
     printf("**Masking Kernel**\n");
     printf("Total time taken: %f s \n Runtime bandwidth: %f GB/s\n", mask_difference / num_runs, mask_bw * num_runs);
 }

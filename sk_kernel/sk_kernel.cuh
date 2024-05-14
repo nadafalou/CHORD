@@ -26,10 +26,10 @@
 
 extern void launch_downsample_kernel(
     const uint32_t *E,   // shape (T, F, D/2)
-    float4 *S1,          // shape (T/N, F, D/2)
-    float4 *S2,          // shape (T/N, F, D/2)
-    float4 *S1_p,        // shape (T/N_p, F, D/2)
-    float4 *S2_p,        // shape (T/N_p, F, D/2)
+    uint4 *S1,           // shape (T/N, F, D/2)
+    uint4 *S2,           // shape (T/N, F, D/2)
+    uint4 *S1_p,         // shape (T/N_p, F, D/2)
+    uint4 *S2_p,         // shape (T/N_p, F, D/2)
     size_t N,            // first-stage downsampling factor (value TBD, maybe 256 in CHORD)
     size_t N_p,          // second-stage downsampling factor (value TBD, maybe 32*256 in CHORD)
     size_t D,            // number of dishes (64 in CHORD pathfinder, 512 in full CHORD)

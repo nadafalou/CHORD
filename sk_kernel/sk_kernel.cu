@@ -29,16 +29,16 @@ __device__ __forceinline__ int cmplx_tesseract(int real, int imaginary) {
     return square(cmplx_square(real, imaginary));
 }
 
-__device__ void s_update(float &s1, float &s2, float &s1_p, float &s2_p, float re, float im) {
-    float sq = cmplx_square(re, im);
+__device__ void s_update(uint &s1, uint &s2, uint &s1_p, uint &s2_p, uint re, uint im) {
+    uint sq = cmplx_square(re, im);
     s1 += sq;
     s1_p += sq;
     s2 += sq*sq;
     s2_p += sq*sq;
 }
 
-__device__ void store_float4(float4 *p, float x, float y, float z, float w) {
-    float4 tmp;
+__device__ void store_uint4(uint4 *p, uint x, uint y, uint z, uint w) {
+    uint4 tmp;
     tmp.x = x;
     tmp.y = y;
     tmp.z = z;
@@ -46,14 +46,14 @@ __device__ void store_float4(float4 *p, float x, float y, float z, float w) {
     *p = tmp;
 }
 
-__global__ void __launch_bounds__(128, 4) downsample(const uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
+__global__ void __launch_bounds__(128, 4) downsample(const uint32_t *E, uint4 *S1, uint4 *S2, uint4 *S1_p, uint4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
     // if each thread took one time sample, not N':
     int num_threads;
     D == 64 ? num_threads = 32 : num_threads = 32 * 4;
 
-    int s1_0, s1_1, s1_2, s1_3, s2_0, s2_1, s2_2, s2_3;
+    uint s1_0, s1_1, s1_2, s1_3, s2_0, s2_1, s2_2, s2_3;
     s1_0 = s1_1 = s1_2 = s1_3 = s2_0 = s2_1 = s2_2 = s2_3 = 0;
-    int s1_p_0, s1_p_1, s1_p_2, s1_p_3, s2_p_0, s2_p_1, s2_p_2, s2_p_3;
+    uint s1_p_0, s1_p_1, s1_p_2, s1_p_3, s2_p_0, s2_p_1, s2_p_2, s2_p_3;
     s1_p_0 = s1_p_1 = s1_p_2 = s1_p_3 = s2_p_0 = s2_p_1 = s2_p_2 = s2_p_3 = 0;
     int e0_re, e0_im, e1_re, e1_im, e2_re, e2_im, e3_re, e3_im;
     e0_re = e0_im = e1_re = e1_im = e2_re = e2_im = e3_re = e3_im = 0;
@@ -76,14 +76,14 @@ __global__ void __launch_bounds__(128, 4) downsample(const uint32_t *E, float4 *
         // uint32_t e = E[F * D / 2 * n_p];
 
         // Unpack uint32 into 4 complex numbers (each with real and imaginary components)
-        e0_re = int(e & 0xf);
-        e0_im = int((e >> 4) & 0xf);
-        e1_re = int((e >> 8) & 0xf);
-        e1_im = int((e >> 12) & 0xf);
-        e2_re = int((e >> 16) & 0xf);
-        e2_im = int((e >> 20) & 0xf);
-        e3_re = int((e >> 24) & 0xf);
-        e3_im = int((e >> 28) & 0xf);
+        e0_re = e & 0xf;
+        e0_im = (e >> 4) & 0xf;
+        e1_re = (e >> 8) & 0xf;
+        e1_im = (e >> 12) & 0xf;
+        e2_re = (e >> 16) & 0xf;
+        e2_im = (e >> 20) & 0xf;
+        e3_re = (e >> 24) & 0xf;
+        e3_im = (e >> 28) & 0xf;
 
         // Square/tesseract and sum
         s1_0 += cmplx_square(e0_re, e0_im);
@@ -129,8 +129,8 @@ __global__ void __launch_bounds__(128, 4) downsample(const uint32_t *E, float4 *
             S2[0].w = s2_3;
 
             // this optimisation did not make a difference
-            // store_float4(S1, s1_0, s1_1, s1_2, s1_3);
-            // store_float4(S2, s2_0, s2_1, s2_2, s2_3);
+            // store_uint4(S1, s1_0, s1_1, s1_2, s1_3);
+            // store_uint4(S2, s2_0, s2_1, s2_2, s2_3);
 
             s1_0 = s1_1 = s1_2 = s1_3 = 0;
             s2_0 = s2_1 = s2_2 = s2_3 = 0;
@@ -157,7 +157,7 @@ __global__ void __launch_bounds__(128, 4) downsample(const uint32_t *E, float4 *
 
 
 
-void launch_downsample_kernel(const uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F, cudaStream_t stream)
+void launch_downsample_kernel(const uint32_t *E, uint4 *S1, uint4 *S2, uint4 *S1_p, uint4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F, cudaStream_t stream)
 {
     // Define some reasonable ranges for integer-valued arguments.
     if ((F <= 0) || (F > 10000))
@@ -185,6 +185,11 @@ void launch_downsample_kernel(const uint32_t *E, float4 *S1, float4 *S2, float4 
     if ((D != 64) && (D % 256))
 	throw std::runtime_error("launch_downsample_kernel(): invalid value of D (kernel currently supports 64 or multiple of 256)");
 
+    // This restriction arises because we use (unsigned int) to store the S_2 array (= sum_t |E|^4)
+    // If we accumulate >= 2^18 samples, then the 32-bit unsigned int can overflow.
+    if (N_p >= 262144)  // 2^18
+	throw std::runtime_error("launch_downsample_kernel(): N_p must be < 2^18");
+	    
     // This restriction arises because we set blocks.z = (T/N_p), and 65535 is the max value allowed by cuda.
     // (Reference: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#features-and-technical-specifications)
     if (T > 65535*N_p)

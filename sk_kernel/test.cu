@@ -1,10 +1,10 @@
 #include "sk_kernel.cuh" 
 #include "mask.cuh"
 
-bool float4_arrays_equal(float4 *arr1, float4 *arr2, size_t size) {
+bool uint4_arrays_equal(uint4 *arr1, uint4 *arr2, size_t size) {
     for (size_t i = 0; i < size; i++) {
         if (arr1[i].x != arr2[i].x | arr1[i].y != arr2[i].y | arr1[i].z != arr2[i].z | arr1[i].w != arr2[i].w) {
-            printf("first fail at index %lu: %f != %f, %f != %f, %f != %f, %f != %f \n", 
+            printf("first fail at index %lu: %u != %u, %u != %u, %u != %u, %u != %u \n", 
                 i, arr1[i].x, arr2[i].x, arr1[i].y, arr2[i].y, arr1[i].z, arr2[i].z, arr1[i].w, arr2[i].w);
             return false;
         }
@@ -32,24 +32,25 @@ bool float_arrays_equal(float *arr1, float *arr2, size_t size) {
     return true;
 }
 
-float h_square(float num) {
+template<typename T>
+T h_square(T num) {
     return num * num;
 }
 
-float h_cmplx_square(float real, float imaginary) {
+int h_cmplx_square(int real, int imaginary) {
     return h_square(real) + h_square(imaginary);
 }
 
-float h_cmplx_tesseract(float real, float imaginary) { 
+int h_cmplx_tesseract(int real, int imaginary) { 
     return h_square(h_cmplx_square(real, imaginary));
 }
 
-void naive_downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
-    float s1_0, s1_1, s1_2, s1_3, s2_0, s2_1, s2_2, s2_3;
+void naive_downsample(uint32_t *E, uint4 *S1, uint4 *S2, uint4 *S1_p, uint4 *S2_p, size_t N, size_t N_p, size_t D, size_t T, size_t F) {
+    uint s1_0, s1_1, s1_2, s1_3, s2_0, s2_1, s2_2, s2_3;
     s1_0 = s1_1 = s1_2 = s1_3 = s2_0 = s2_1 = s2_2 = s2_3 = 0;
-    float s1_p_0, s1_p_1, s1_p_2, s1_p_3, s2_p_0, s2_p_1, s2_p_2, s2_p_3;
+    uint s1_p_0, s1_p_1, s1_p_2, s1_p_3, s2_p_0, s2_p_1, s2_p_2, s2_p_3;
     s1_p_0 = s1_p_1 = s1_p_2 = s1_p_3 = s2_p_0 = s2_p_1 = s2_p_2 = s2_p_3 = 0;
-    float e0_re, e0_im, e1_re, e1_im, e2_re, e2_im, e3_re, e3_im;
+    int e0_re, e0_im, e1_re, e1_im, e2_re, e2_im, e3_re, e3_im;
     e0_re = e0_im = e1_re = e1_im = e2_re = e2_im = e3_re = e3_im = 0;
 
     for (int t_bar = 0; t_bar < T; t_bar = t_bar + N_p){
@@ -67,14 +68,14 @@ void naive_downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 
                 for (int t = t_bar; t < t_bar + N_p; t++) {
                     uint32_t e = E[t * D / 2 * F + f * D / 2 + feed4];
 
-                    e0_re = float(e & 0xf);
-                    e0_im = float((e >> 4) & 0xf);
-                    e1_re = float((e >> 8) & 0xf);
-                    e1_im = float((e >> 12) & 0xf);
-                    e2_re = float((e >> 16) & 0xf);
-                    e2_im = float((e >> 20) & 0xf);
-                    e3_re = float((e >> 24) & 0xf);
-                    e3_im = float((e >> 28) & 0xf);
+                    e0_re = e & 0xf;
+                    e0_im = (e >> 4) & 0xf;
+                    e1_re = (e >> 8) & 0xf;
+                    e1_im = (e >> 12) & 0xf;
+                    e2_re = (e >> 16) & 0xf;
+                    e2_im = (e >> 20) & 0xf;
+                    e3_re = (e >> 24) & 0xf;
+                    e3_im = (e >> 28) & 0xf;
 
                     s1_p_0 += h_cmplx_square(e0_re, e0_im);
                     s1_p_1 += h_cmplx_square(e1_re, e1_im);
@@ -116,14 +117,14 @@ void naive_downsample(uint32_t *E, float4 *S1, float4 *S2, float4 *S1_p, float4 
                 for (int t = t_bar; t < t_bar + N; t++) {
                     uint32_t e = E[t * D / 2 * F + f * D / 2 + feed4];
 
-                    e0_re = float(e & 0xf);
-                    e0_im = float((e >> 4) & 0xf);
-                    e1_re = float((e >> 8) & 0xf);
-                    e1_im = float((e >> 12) & 0xf);
-                    e2_re = float((e >> 16) & 0xf);
-                    e2_im = float((e >> 20) & 0xf);
-                    e3_re = float((e >> 24) & 0xf);
-                    e3_im = float((e >> 28) & 0xf);
+                    e0_re = e & 0xf;
+                    e0_im = (e >> 4) & 0xf;
+                    e1_re = (e >> 8) & 0xf;
+                    e1_im = (e >> 12) & 0xf;
+                    e2_re = (e >> 16) & 0xf;
+                    e2_im = (e >> 20) & 0xf;
+                    e3_re = (e >> 24) & 0xf;
+                    e3_im = (e >> 28) & 0xf;
 
                     s1_0 += h_cmplx_square(e0_re, e0_im);
                     s1_1 += h_cmplx_square(e1_re, e1_im);
@@ -160,7 +161,7 @@ float V_func(float mu) {
 }
 
 
-void naive_mask(uint32_t *R, uint32_t *W, float4 *S1, float4 *S2, size_t N, size_t D, size_t T_bar, size_t F, float mu_min, float N_good_min, float sigma, float *SK, float *mean_SK, float *var_SK) {
+void naive_mask(uint32_t *R, uint32_t *W, uint4 *S1, uint4 *S2, size_t N, size_t D, size_t T_bar, size_t F, float mu_min, float N_good_min, float sigma, float *SK, float *mean_SK, float *var_SK) {
     float N_good = 0;
     for (int w = 0; w < D * 2; w++) {
         N_good += (int) W[w];
@@ -178,19 +179,19 @@ void naive_mask(uint32_t *R, uint32_t *W, float4 *S1, float4 *S2, size_t N, size
     float mu[D * 2 * F * T_bar];
     float S2_tilde[D * 2 * F * T_bar];
     for (int s = 0; s < D / 2 * F * T_bar; s++) {
-        mu[s * 4 + 0] = S1[s].x / (float) N;
-        mu[s * 4 + 1] = S1[s].y / (float) N;
-        mu[s * 4 + 2] = S1[s].z / (float) N;
-        mu[s * 4 + 3] = S1[s].w / (float) N;
+        mu[s * 4 + 0] = float(S1[s].x) / float(N);
+        mu[s * 4 + 1] = float(S1[s].y) / float(N);
+        mu[s * 4 + 2] = float(S1[s].z) / float(N);
+        mu[s * 4 + 3] = float(S1[s].w) / float(N);
 
         if (mu[s * 4 + 0] < mu_min) { S2_tilde[s * 4 + 0] = 0; } 
-        else { S2_tilde[s * 4 + 0] = S2[s].x / (mu[s * 4 + 0] * mu[s * 4 + 0]); }
+        else { S2_tilde[s * 4 + 0] = float(S2[s].x) / (mu[s * 4 + 0] * mu[s * 4 + 0]); }
         if (mu[s * 4 + 1] < mu_min) { S2_tilde[s * 4 + 1] = 0; } 
-        else { S2_tilde[s * 4 + 1] = S2[s].y / (mu[s * 4 + 1] * mu[s * 4 + 1]); }
+        else { S2_tilde[s * 4 + 1] = float(S2[s].y) / (mu[s * 4 + 1] * mu[s * 4 + 1]); }
         if (mu[s * 4 + 2] < mu_min) { S2_tilde[s * 4 + 2] = 0; } 
-        else { S2_tilde[s * 4 + 2] = S2[s].z / (mu[s * 4 + 2] * mu[s * 4 + 2]); }
+        else { S2_tilde[s * 4 + 2] = float(S2[s].z) / (mu[s * 4 + 2] * mu[s * 4 + 2]); }
         if (mu[s * 4 + 3] < mu_min) { S2_tilde[s * 4 + 3] = 0; } 
-        else { S2_tilde[s * 4 + 3] = S2[s].w / (mu[s * 4 + 3] * mu[s * 4 + 3]); }
+        else { S2_tilde[s * 4 + 3] = float(S2[s].w) / (mu[s * 4 + 3] * mu[s * 4 + 3]); }
     }
 
     float sum;
@@ -235,9 +236,9 @@ void naive_mask(uint32_t *R, uint32_t *W, float4 *S1, float4 *S2, size_t N, size
 
 void test_downsample() {
     uint32_t *h_E, *d_E;
-    float4 *h_S1, *h_S2, *h_S1_p, *h_S2_p;
-    float4 *naive_S1, *naive_S2, *naive_S1_p, *naive_S2_p;
-    float4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
+    uint4 *h_S1, *h_S2, *h_S1_p, *h_S2_p;
+    uint4 *naive_S1, *naive_S2, *naive_S1_p, *naive_S2_p;
+    uint4 *d_S1, *d_S2, *d_S1_p, *d_S2_p;
     const size_t N = 256;
     const size_t N_p = 256 * 128;
     const size_t D = 64; // 64 or 512
@@ -245,21 +246,21 @@ void test_downsample() {
     const size_t F = 256;
 
     h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
-    h_S1 = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N));
-    h_S2 = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N));
-    h_S1_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
-    h_S2_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
+    h_S1 = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N));
+    h_S2 = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N));
+    h_S1_p = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N_p));
+    h_S2_p = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N_p));
 
-    naive_S1 = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N));
-    naive_S2 = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N));
-    naive_S1_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
-    naive_S2_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
+    naive_S1 = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N));
+    naive_S2 = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N));
+    naive_S1_p = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N_p));
+    naive_S2_p = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N_p));
 
     gpuErrchk(cudaMalloc((void**)&d_E, sizeof(uint32_t) * D / 2 * F * T));
-    gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(float4) * D / 2 * F * (T/N)));
-    gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(float4) * D / 2 * F * (T/N)));
-    gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(float4) * D / 2 * F * (T/N_p)));
-    gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(float4) * D / 2 * F * (T/N_p)));
+    gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(uint4) * D / 2 * F * (T/N)));
+    gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(uint4) * D / 2 * F * (T/N)));
+    gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(uint4) * D / 2 * F * (T/N_p)));
+    gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(uint4) * D / 2 * F * (T/N_p)));
 
     generate_random(h_E, D / 2 * F * T);
 
@@ -278,25 +279,25 @@ void test_downsample() {
 
     double difference = (double)(clock() - before) / CLOCKS_PER_SEC;
 
-    gpuErrchk(cudaMemcpy(h_S1, d_S1, sizeof(float4) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_S2, d_S2, sizeof(float4) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_S1_p, d_S1_p, sizeof(float4) * D / 2 * F * (T/N_p), cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_S2_p, d_S2_p, sizeof(float4) * D / 2 * F * (T/N_p), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_S1, d_S1, sizeof(uint4) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_S2, d_S2, sizeof(uint4) * D / 2 * F * (T/N), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_S1_p, d_S1_p, sizeof(uint4) * D / 2 * F * (T/N_p), cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_S2_p, d_S2_p, sizeof(uint4) * D / 2 * F * (T/N_p), cudaMemcpyDeviceToHost));
 
     bool match = true;
-    if (float4_arrays_equal(h_S1, naive_S1, D / 2 * F * (T/N)) == 0) {
+    if (uint4_arrays_equal(h_S1, naive_S1, D / 2 * F * (T/N)) == 0) {
         printf("S1 does not match \n");
         match = false;
     }
-    if (float4_arrays_equal(h_S1_p, naive_S1_p, D / 2 * F * (T/N_p)) == 0) {
+    if (uint4_arrays_equal(h_S1_p, naive_S1_p, D / 2 * F * (T/N_p)) == 0) {
         printf("S1' does not match \n");
         match = false;
     }
-    if (float4_arrays_equal(h_S2, naive_S2, D / 2 * F * (T/N)) == 0) {
+    if (uint4_arrays_equal(h_S2, naive_S2, D / 2 * F * (T/N)) == 0) {
         printf("S2 does not match \n");
         match = false;
     }
-    if (float4_arrays_equal(h_S2_p, naive_S2_p, D / 2 * F * (T/N_p)) == 0) {
+    if (uint4_arrays_equal(h_S2_p, naive_S2_p, D / 2 * F * (T/N_p)) == 0) {
         printf("S2' does not match \n");
         match = false;
     }
@@ -315,7 +316,7 @@ void test_mask() {
     uint32_t *h_E, *d_E;
     uint32_t *h_R, *d_R, *h_W, *d_W;
     uint32_t *naive_R;
-    float4 *h_S1, *h_S2, *h_S1_p, *h_S2_p, *d_S1, *d_S2, *d_S1_p, *d_S2_p;
+    uint4 *h_S1, *h_S2, *h_S1_p, *h_S2_p, *d_S1, *d_S2, *d_S1_p, *d_S2_p;
     const size_t N = 2;//2; 256;
     const size_t N_p = 4;//4; 256 * 128;
     const size_t D = 64; // 64 or 512, needs to be multiple of 64
@@ -323,25 +324,25 @@ void test_mask() {
     const size_t T_bar = T / N;
     const size_t F = 5;
     const float sigma = 5;
-    float4 *naive_S1, *naive_S2, *naive_S1_p, *naive_S2_p;
+    uint4 *naive_S1, *naive_S2, *naive_S1_p, *naive_S2_p;
     float *naive_SK, *naive_mean_SK, *naive_var_SK, *d_SK, *d_mean_SK, *d_var_SK, *h_SK, *h_mean_SK, *h_var_SK; // temp for testing
 
     // malloc arrays on host
     h_E = (uint32_t*)malloc(sizeof(uint32_t) * D / 2 * F * T);
     h_R = (uint32_t*)malloc(sizeof(uint32_t) * F * T_bar);
     h_W = (uint32_t*)malloc(sizeof(uint32_t) * D * 2);
-    h_S1 = (float4*)malloc(sizeof(float4) * D / 2 * F * T_bar);
-    h_S2 = (float4*)malloc(sizeof(float4) * D / 2 * F * T_bar);
-    h_S1_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
-    h_S2_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
+    h_S1 = (uint4*)malloc(sizeof(uint4) * D / 2 * F * T_bar);
+    h_S2 = (uint4*)malloc(sizeof(uint4) * D / 2 * F * T_bar);
+    h_S1_p = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N_p));
+    h_S2_p = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N_p));
 
     naive_R = (uint32_t*)malloc(sizeof(uint32_t) * F * T_bar);
 
     // TODO delete later; temp for testing
-    naive_S1 = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N));
-    naive_S2 = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N));
-    naive_S1_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
-    naive_S2_p = (float4*)malloc(sizeof(float4) * D / 2 * F * (T/N_p));
+    naive_S1 = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N));
+    naive_S2 = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N));
+    naive_S1_p = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N_p));
+    naive_S2_p = (uint4*)malloc(sizeof(uint4) * D / 2 * F * (T/N_p));
     naive_SK = (float*)malloc(sizeof(float) * F * T/N);
     naive_mean_SK = (float*)malloc(sizeof(float) * F * T/N);
     naive_var_SK = (float*)malloc(sizeof(float) * F * T/N);
@@ -353,10 +354,10 @@ void test_mask() {
     gpuErrchk(cudaMalloc((void**)&d_E, sizeof(uint32_t) * D / 2 * F * T));
     gpuErrchk(cudaMalloc((void**)&d_R, sizeof(uint32_t) * F * T_bar));
     gpuErrchk(cudaMalloc((void**)&d_W, sizeof(uint32_t) * D * 2));
-    gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(float4) * D / 2 * F * T_bar));
-    gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(float4) * D / 2 * F * T_bar));
-    gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(float4) * D / 2 * F * T_bar));
-    gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(float4) * D / 2 * F * T_bar));
+    gpuErrchk(cudaMalloc((void**)&d_S1, sizeof(uint4) * D / 2 * F * T_bar));
+    gpuErrchk(cudaMalloc((void**)&d_S2, sizeof(uint4) * D / 2 * F * T_bar));
+    gpuErrchk(cudaMalloc((void**)&d_S1_p, sizeof(uint4) * D / 2 * F * T_bar));
+    gpuErrchk(cudaMalloc((void**)&d_S2_p, sizeof(uint4) * D / 2 * F * T_bar));
 
     // TODO delete later; temp for testing
     gpuErrchk(cudaMalloc((void**)&d_SK, sizeof(float) * F * T/N));
@@ -374,15 +375,15 @@ void test_mask() {
 
     naive_downsample(h_E, naive_S1, naive_S2, naive_S1_p, naive_S2_p, N, N_p, D, T, F);
 
-    gpuErrchk(cudaMemcpy(h_S1, d_S1, sizeof(float4) * D / 2 * F * T_bar, cudaMemcpyDeviceToHost));
-    gpuErrchk(cudaMemcpy(h_S2, d_S2, sizeof(float4) * D / 2 * F * T_bar, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_S1, d_S1, sizeof(uint4) * D / 2 * F * T_bar, cudaMemcpyDeviceToHost));
+    gpuErrchk(cudaMemcpy(h_S2, d_S2, sizeof(uint4) * D / 2 * F * T_bar, cudaMemcpyDeviceToHost));
 
     bool downsample_match = true;
-    if (float4_arrays_equal(h_S1, naive_S1, D / 2 * F * (T/N)) == 0) {
+    if (uint4_arrays_equal(h_S1, naive_S1, D / 2 * F * (T/N)) == 0) {
         printf("S1 does not match \n");
         downsample_match = false;
     }
-    if (float4_arrays_equal(h_S2, naive_S2, D / 2 * F * (T/N)) == 0) {
+    if (uint4_arrays_equal(h_S2, naive_S2, D / 2 * F * (T/N)) == 0) {
         printf("S2 does not match \n");
         downsample_match = false;
     }
@@ -418,7 +419,7 @@ void test_mask() {
     // time and run parallel solution
     clock_t before = clock();
 
-    mask<<< blocks, threads >>>(d_R, d_W, (float*) d_S1, (float*) d_S2, N, D, T_bar, F, 1, 1, sigma, d_SK, d_mean_SK, d_var_SK); 
+    mask<<< blocks, threads >>>(d_R, d_W, (uint*) d_S1, (uint*) d_S2, N, D, T_bar, F, 1, 1, sigma, d_SK, d_mean_SK, d_var_SK); 
     printf("peek: %d\n", cudaPeekAtLastError());
    
     gpuErrchk(cudaDeviceSynchronize());
@@ -464,6 +465,6 @@ void test_mask() {
 
 
 int main() {
-    // test_downsample();
-    test_mask();
+    test_downsample();
+    // test_mask();
 }

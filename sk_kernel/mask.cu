@@ -80,7 +80,7 @@ __device__ float d_V_func(float mu) {
 }
 
 
-__global__ void __launch_bounds__(1024, 1) mask(uint32_t *R, uint32_t *W, float *S1, float *S2, size_t N, size_t D, size_t T_bar, size_t F, float mu_min, float N_good_min, float sigma, float *SK, float *mean_SK, float *var_SK) {
+__global__ void __launch_bounds__(1024, 1) mask(uint32_t *R, uint32_t *W, uint *S1, uint *S2, size_t N, size_t D, size_t T_bar, size_t F, float mu_min, float N_good_min, float sigma, float *SK, float *mean_SK, float *var_SK) {
     int th_col = threadIdx.x % 32; // thread num
     int th_row = threadIdx.x / 32; // warp num: 1 t each
 
@@ -113,10 +113,10 @@ __global__ void __launch_bounds__(1024, 1) mask(uint32_t *R, uint32_t *W, float 
     // loop over feeds in this thread, calc sum, mean_sum and var_sum
     for (int i = th_col; i < D * 2; i = i + 32) {
         s_idx = blockIdx.y * 32 * F * D * 2 + blockIdx.x * D * 2 + th_row * F * D * 2 + i;
-        mu = S1[s_idx] / (float) N;
+        mu = float(S1[s_idx]) / (float) N;
 
         if (mu >= mu_min) { 
-            S2_tilde = S2[s_idx] / (mu * mu); 
+            S2_tilde = float(S2[s_idx]) / (mu * mu); 
             sum += (float) W[i] * (S2_tilde / (float) N - 1);
             mean_sum += (float) W[i] * d_M_func(mu);
             var_sum += (float) W[i] * d_V_func(mu);
