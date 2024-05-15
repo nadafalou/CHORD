@@ -2,6 +2,7 @@ mmul/mmul
 transpose/transpose
 sk_kernel/main
 sk_kernel/test
+sk_kernel/test2
 test_downsample_old*
 CUnit*
 Downloads

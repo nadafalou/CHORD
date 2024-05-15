@@ -17,10 +17,16 @@ main: $(OBJ) main.o
 test: $(OBJ) test.o
 	$(NVCC) $(ARCH) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
+test2: $(OBJ) test2.o
+	$(NVCC) $(ARCH) $(CFLAGS) $(LDFLAGS) -o $@ $^
+
 profile: main
 	$(NCU) --set full --metrics all -f -o ./output.ncu-rep $^ --kernel-name $(KERNEL)
 
-.PHONY: clean
+.DEFAULT_GOAL: all
+.PHONY: all clean
+
+all: main test test2
 
 clean:
-	rm -f *.o main test
+	rm -f *.o main test test2
