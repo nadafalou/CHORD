@@ -1,7 +1,9 @@
 CUDA_PATH = /usr/local/cuda
 NVCC = $(CUDA_PATH)/bin/nvcc
 NCU = $(CUDA_PATH)/bin/ncu
-ARCH = -arch=sm_86
+ARCH =
+ARCH += -gencode arch=compute_80,code=sm_80
+ARCH += -gencode arch=compute_86,code=sm_86
 CFLAGS = -g -O2
 # LDFLAGS =
 
